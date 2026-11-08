@@ -7,3 +7,4 @@ data/.gitkeep
 *.vsix
 node_modules/**
 .gitignore
+发布文案.md
