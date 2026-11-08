@@ -1,0 +1,2695 @@
+[
+  {
+    "keys": [
+      "vector"
+    ],
+    "scope": "vector",
+    "kind": "类",
+    "brief": "动态数组：随机访问 O(1)，尾部增删均摊 O(1)，中间插入删除 O(n)；要连续内存和下标的场景首选。",
+    "sig": "template<class T, class Allocator = std::allocator<T>>\nclass vector;",
+    "notes": [
+      "底层是连续内存块，capacity 决定已分配的容量。",
+      "push_back 均摊 O(1)，扩容时要整体搬移，代价被摊平。",
+      "没有 push_front，头部插入要 O(n) 移动。"
+    ],
+    "pits": [
+      "扩容会让所有迭代器、指针、引用失效；需要长期持有元素地址时先 reserve。",
+      "operator[] 不检查边界，越界是未定义行为；要检查用 at。",
+      "vector<bool> 是特化，operator[] 返回代理对象，不能直接取 bool&。"
+    ],
+    "example": "std::vector<int> v(3, 0);\nv.push_back(1);\nv[0] = 7;\nstd::cout << v[0] << v.size();",
+    "link": "https://en.cppreference.com/w/cpp/container/vector",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "string"
+    ],
+    "scope": "string",
+    "kind": "类",
+    "brief": "字符序列：连续存储，下标 O(1)，尾部拼接均摊 O(1)；要处理文本、和 C 接口互转时用。",
+    "sig": "typedef basic_string<char> string;  // 即 std::basic_string<char>",
+    "notes": [
+      "length 与 size 相同，返回字节数，不是字符数。",
+      "短字符串有 SSO 优化，小串不一定堆分配。",
+      "C++11 起 data() 连续且以空字符结尾。"
+    ],
+    "pits": [
+      "operator[] 和 at 是字节下标，按字节切 UTF-8 文本会切坏字符。",
+      "c_str()/data() 返回的指针在修改字符串或重新分配后失效。",
+      "循环里 s = s + x 会反复分配，改用 +=、append 或先 reserve。"
+    ],
+    "example": "std::string s = \"abc\";\ns += \"def\";\nsize_t p = s.find(\"cd\");\nstd::string t = s.substr(1, 3);",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "list"
+    ],
+    "scope": "list",
+    "kind": "类",
+    "brief": "双向链表：中间插删 O(1)，不支持随机访问；频繁在中间增删、不需要下标时用。",
+    "sig": "template<class T, class Allocator = std::allocator<T>>\nclass list;",
+    "notes": [
+      "每个元素单独分配节点，内存开销比 vector 大。",
+      "splice 能在常数时间把节点挪到另一个 list。",
+      "排序用成员 sort，不要用 std::sort（需要随机访问迭代器）。"
+    ],
+    "pits": [
+      "没有 operator[] 和 at，随机访问只能线性遍历。",
+      "std::sort 编译不过，要用 list::sort。",
+      "splice 后元素已属于另一个 list，别再用原容器的迭代器去删它。"
+    ],
+    "example": "std::list<int> l{1, 2, 3};\nl.push_front(0);\nauto it = l.begin();\nl.erase(it);\n// 其他迭代器仍然有效",
+    "link": "https://en.cppreference.com/w/cpp/container/list",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "deque"
+    ],
+    "scope": "deque",
+    "kind": "类",
+    "brief": "双端队列：分段连续存储，两端增删 O(1)，下标 O(1)；既要头尾插入又要随机访问时用。",
+    "sig": "template<class T, class Allocator = std::allocator<T>>\nclass deque;",
+    "notes": [
+      "分段连续存储，中间插入仍是 O(n)。",
+      "头部插入不会像 vector 那样搬移全部元素。",
+      "没有 reserve/capacity。"
+    ],
+    "pits": [
+      "中间插入删除会让所有迭代器失效；两端插入也会让所有迭代器失效（引用仍有效）。",
+      "内存不连续，没有 data() 可传给 C 接口。",
+      "vector 没有 push_front，deque 才有。"
+    ],
+    "example": "std::deque<int> d{2, 3};\nd.push_front(1);\nd.push_back(4);\nint x = d[0];",
+    "link": "https://en.cppreference.com/w/cpp/container/deque",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "array"
+    ],
+    "scope": "array",
+    "kind": "类",
+    "brief": "固定长度数组：元素存在对象内、不堆分配，访问 O(1)；大小编译期固定、要避免堆分配时用。",
+    "sig": "template<class T, std::size_t N>\nstruct array;",
+    "notes": [
+      "大小不可变，不能 push_back/resize。",
+      "元素存在对象内部，不堆分配，可整体拷贝。",
+      "支持聚合初始化，也能用 std::get 按索引取元素。"
+    ],
+    "pits": [
+      "operator[] 不检查越界，at 越界抛 out_of_range。",
+      "按值传参会把整个数组拷贝一份，通常传引用。",
+      "N 为 0 合法，但 begin() == end()，不能解引用。"
+    ],
+    "example": "std::array<int, 3> a{1, 2, 3};\na.fill(0);\nint x = a.at(1);\nstd::size_t n = a.size();",
+    "link": "https://en.cppreference.com/w/cpp/container/array",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "map"
+    ],
+    "scope": "map",
+    "kind": "类",
+    "brief": "有序键值表（红黑树）：查找插入 O(log n)，遍历有序；要按 key 排序、做范围查询时选它。",
+    "sig": "template<class Key, class T, class Compare = std::less<Key>,\n         class Allocator = std::allocator<std::pair<const Key, T>>>\nclass map;",
+    "notes": [
+      "元素类型是 std::pair<const Key, T>，key 不可改。",
+      "迭代顺序按 key 升序。",
+      "底层红黑树，插入删除只影响相关的节点。"
+    ],
+    "pits": [
+      "operator[] 在 key 不存在时会插入默认值，查值请用 find 或 at。",
+      "key 必须可比较，自定义类型要提供比较器或 operator<。",
+      "erase(key) 返回删除个数 0/1，不是迭代器。"
+    ],
+    "example": "std::map<std::string, int> m;\nm[\"a\"] = 1;\nauto it = m.find(\"a\");\nif (it != m.end()) { int v = it->second; }",
+    "link": "https://en.cppreference.com/w/cpp/container/map",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "unordered_map"
+    ],
+    "scope": "unordered_map",
+    "kind": "类",
+    "brief": "哈希键值表：查找插入均摊 O(1)，元素无序；只按 key 存取、不需要顺序时选它。",
+    "sig": "template<class Key, class T, class Hash = std::hash<Key>,\n         class KeyEqual = std::equal_to<Key>,\n         class Allocator = std::allocator<std::pair<const Key, T>>>\nclass unordered_map;",
+    "notes": [
+      "桶数组加链表/节点（实现相关），max_load_factor 默认约 1。",
+      "元素多时 rehash 会让所有迭代器失效。",
+      "冲突严重时单次操作最坏退化到 O(n)。"
+    ],
+    "pits": [
+      "遍历顺序不固定，不能依赖；要顺序用 map。",
+      "自定义 key 要提供 std::hash 特化和 operator==。",
+      "rehash 后迭代器全部失效，但指针/引用仍指向元素。"
+    ],
+    "example": "std::unordered_map<std::string, int> m;\nm[\"a\"] = 1;\nif (m.count(\"a\")) { /* 存在 */ }",
+    "link": "https://en.cppreference.com/w/cpp/container/unordered_map",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "set"
+    ],
+    "scope": "set",
+    "kind": "类",
+    "brief": "有序集合（红黑树）：元素唯一且有序，查找插入 O(log n)；要去重并有序遍历时用。",
+    "sig": "template<class Key, class Compare = std::less<Key>,\n         class Allocator = std::allocator<Key>>\nclass set;",
+    "notes": [
+      "元素即 key，不能原地修改；要改先 erase 再 insert。",
+      "insert 返回 pair<iterator, bool>，second 表示是否真的插入。",
+      "迭代顺序按 key 升序。"
+    ],
+    "pits": [
+      "迭代器解引用得到 const 引用，不能通过它改元素。",
+      "contains 是 C++20 接口，C++17 用 find != end()。",
+      "erase(key) 的返回值是删除个数（0/1）。"
+    ],
+    "example": "std::set<int> s{3, 1, 2, 1};\ns.insert(4);\nif (s.find(2) != s.end()) { /* 找到 */ }\nfor (int x : s) { /* 升序 */ }",
+    "link": "https://en.cppreference.com/w/cpp/container/set",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "stack"
+    ],
+    "scope": "stack",
+    "kind": "类",
+    "brief": "栈适配器：后进先出，只操作栈顶，push/pop O(1)；括号匹配、DFS 这类后进先出场景用。",
+    "sig": "template<class T, class Container = std::deque<T>>\nclass stack;",
+    "notes": [
+      "默认用 deque 作底层容器，可换成 vector/list。",
+      "没有迭代器，不能遍历。",
+      "所有操作 O(1)。"
+    ],
+    "pits": [
+      "pop() 不返回值，取栈顶要先 top() 再 pop()。",
+      "空栈调用 top()/pop() 是未定义行为，没有异常可捕获。",
+      "stack 是适配器，没有 begin/end。"
+    ],
+    "example": "std::stack<int> st;\nst.push(1);\nint top = st.top();\nst.pop();",
+    "link": "https://en.cppreference.com/w/cpp/container/stack",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "queue"
+    ],
+    "scope": "queue",
+    "kind": "类",
+    "brief": "队列适配器：先进先出，队尾入、队首出，操作 O(1)；BFS、任务排队这类先进先出场景用。",
+    "sig": "template<class T, class Container = std::deque<T>>\nclass queue;",
+    "notes": [
+      "默认底层是 deque，可换 list。",
+      "front() 返回队首，back() 返回队尾。",
+      "push 入队尾、pop 出队首，均 O(1)。"
+    ],
+    "pits": [
+      "pop() 不返回被弹出的元素。",
+      "空队列调用 front()/pop() 是未定义行为。",
+      "没有迭代器，不能遍历。"
+    ],
+    "example": "std::queue<int> q;\nq.push(1);\nq.push(2);\nint x = q.front();\nq.pop();",
+    "link": "https://en.cppreference.com/w/cpp/container/queue",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "priority_queue"
+    ],
+    "scope": "priority_queue",
+    "kind": "类",
+    "brief": "优先队列（二叉堆）：取最值 O(1)，插删 O(log n)；Dijkstra、取前 K 大这类场景用。",
+    "sig": "template<class T, class Container = std::vector<T>,\n         class Compare = std::less<typename Container::value_type>>\nclass priority_queue;",
+    "notes": [
+      "默认大顶堆；小顶堆写 priority_queue<int, vector<int>, greater<int>>。",
+      "push/pop O(log n)，top O(1)。",
+      "底层默认 vector，用 make_heap/push_heap 维护堆序。"
+    ],
+    "pits": [
+      "top() 返回 const 引用，不能原地改（会破坏堆序）。",
+      "没有迭代器，不能遍历。",
+      "小顶堆模板参数顺序易错：容器类型在前，比较器在后。"
+    ],
+    "example": "std::priority_queue<int> pq;\npq.push(3);\npq.push(1);\nint m = pq.top();\npq.pop();",
+    "link": "https://en.cppreference.com/w/cpp/container/priority_queue",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "size"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回元素个数；遍历前取长度、判空时用。",
+    "sig": "size_type size() const;  // 不同容器返回的具体类型不同",
+    "ret": "元素个数，无符号类型 size_type。",
+    "notes": [
+      "各容器 O(1)（C++11 起 list 的 size 也保证 O(1)）。",
+      "C++20 起可用 std::ssize 取有符号结果。",
+      "对 string，size() 与 length() 完全等价。"
+    ],
+    "pits": [
+      "返回无符号类型，和 int 比较会触发隐式转换警告。",
+      "size() 为 0 时 size() - 1 会回绕成极大值，循环条件别这么写。",
+      "size() 不释放内存，capacity 不变。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nfor (std::size_t i = 0; i < v.size(); ++i) { /* ... */ }",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "empty"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "判断容器是否为空；循环前判空、替代 size() == 0 时用。",
+    "sig": "bool empty() const;",
+    "ret": "没有元素返回 true，否则 false。",
+    "notes": [
+      "所有容器 O(1)。",
+      "C++11 起成员 empty 是 noexcept。",
+      "对 string 等价于 size() == 0。"
+    ],
+    "pits": [
+      "empty() 只判断元素个数，不会释放容量，别指望它省内存。",
+      "判空直接写 if (v.empty())，不要靠隐式转换绕。",
+      "empty() 为 true 时不能访问 front()/back()/top()。"
+    ],
+    "example": "std::vector<int> v;\nif (v.empty()) { /* 空 */ }\nv.push_back(1);",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "clear"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "删除全部元素，size 变成 0；复用容器前清空时用。",
+    "sig": "void clear();  // C++11 起 noexcept",
+    "ret": "无返回值。",
+    "notes": [
+      "所有容器 O(n)（要析构每个元素）。",
+      "vector/string 的 capacity 不变。",
+      "想连内存一起还回去用 shrink_to_fit 或 swap。"
+    ],
+    "pits": [
+      "clear 后原有迭代器全部失效。",
+      "clear 不释放堆内存，内存仍占着。",
+      "clear 后马上 push_back 会复用原容量，不会重新分配。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nv.clear();\n// v.size() == 0\n// 但 capacity 可能仍是 3",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "begin"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回指向首元素的迭代器；遍历、传算法、取首元素位置时用。",
+    "sig": "iterator begin();\nconst_iterator begin() const;",
+    "ret": "指向首元素的迭代器；空容器时等于 end()。",
+    "notes": [
+      "C++11 起另有 cbegin() 返回 const_iterator。",
+      "自由函数 std::begin 也能用，还支持原始数组。",
+      "所有容器 O(1)。"
+    ],
+    "pits": [
+      "空容器解引用 begin() 是未定义行为。",
+      "容器修改（vector 扩容、erase）后，begin() 返回的迭代器可能失效。",
+      "迭代器要即取即用，别长期保存。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nfor (auto it = v.begin(); it != v.end(); ++it) { /* ... */ }\nauto first = *v.begin();",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "end"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回尾后迭代器（最后元素的下一个位置）；遍历终点、find 未命中判断时用。",
+    "sig": "iterator end();\nconst_iterator end() const;",
+    "ret": "指向末元素后一位的迭代器，不可解引用。",
+    "notes": [
+      "所有容器 O(1)。",
+      "C++11 起有 cend()。",
+      "std::find 等算法找不到时返回 end()。"
+    ],
+    "pits": [
+      "解引用 end() 是未定义行为。",
+      "关联容器 erase 后 end() 也可能变，别缓存。",
+      "循环条件用 != end()，迭代器不保证可比大小。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nif (std::find(v.begin(), v.end(), 2) != v.end()) { /* 找到 */ }",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "rbegin"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回指向末元素的反向迭代器；逆序遍历、从后往前找时用。",
+    "sig": "reverse_iterator rbegin();\nconst_reverse_iterator rbegin() const;",
+    "ret": "指向最后一个元素的反向迭代器。",
+    "notes": [
+      "反向迭代器和正向迭代器类型不同，不能混用。",
+      "std::sort(v.rbegin(), v.rend()) 可降序排序。",
+      "crbegin() 返回只读的反向迭代器。"
+    ],
+    "pits": [
+      "++rbegin() 朝容器头部方向走。",
+      "反向迭代器的 base() 指向它右侧的正向元素，erase 时要 std::next(it).base()。",
+      "空容器 rbegin() 不能解引用。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nfor (auto it = v.rbegin(); it != v.rend(); ++it) { /* ... */ }",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "rend"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回首元素之前的位置，是反向遍历的终点；配合 rbegin 逆序遍历时用。",
+    "sig": "reverse_iterator rend();\nconst_reverse_iterator rend() const;",
+    "ret": "反向遍历的尾后迭代器，不可解引用。",
+    "notes": [
+      "所有容器 O(1)。",
+      "C++14 起有 crend()。",
+      "rbegin 到 rend 刚好覆盖全部元素一次。"
+    ],
+    "pits": [
+      "解引用 rend() 是未定义行为。",
+      "把 rend() 和正向迭代器混用编译不过。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nfor (auto it = v.rbegin(); it != v.rend(); ++it) { /* ... */ }",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "cbegin"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回 const 迭代器指向首元素；只读遍历、防止误改元素时用。",
+    "sig": "const_iterator cbegin() const noexcept;",
+    "ret": "const_iterator，指向首元素。",
+    "notes": [
+      "C++11 起提供，不修改元素。",
+      "与 begin() const 等价，但明确表达只读意图。",
+      "所有容器 O(1)。"
+    ],
+    "pits": [
+      "cbegin 返回的迭代器不能赋给普通 iterator。",
+      "只能只读，不能通过它修改元素。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nfor (auto it = v.cbegin(); it != v.cend(); ++it) { /* ... */ }",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "cend"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回 const 迭代器指向尾后；和 cbegin 配对的只读遍历终点。",
+    "sig": "const_iterator cend() const noexcept;",
+    "ret": "const_iterator，指向末元素后一位。",
+    "notes": [
+      "C++11 起提供。",
+      "只读遍历用它表达意图。",
+      "所有容器 O(1)。"
+    ],
+    "pits": [
+      "不可解引用。",
+      "类型是 const_iterator，别和 iterator 混用。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nfor (auto it = v.cbegin(); it != v.cend(); ++it) { /* ... */ }",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "insert"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "在指定位置插入元素；往容器中间放数据时用（序列容器按位置，关联容器按 key）。",
+    "sig": "iterator insert(const_iterator pos, const T& value);\niterator insert(const_iterator pos, T&& value);  // C++11 起返回新元素迭代器",
+    "params": [
+      [
+        "pos",
+        "插入位置的迭代器"
+      ],
+      [
+        "value",
+        "要插入的元素"
+      ]
+    ],
+    "ret": "返回指向新插入元素的迭代器（C++11 起，以前返回 void）。",
+    "notes": [
+      "序列容器中间插入 O(n)，vector 可能重分配。",
+      "关联容器签名不同：insert(value) 返回 pair<iterator, bool>。",
+      "还有插入 count 个、区间、initializer_list 的重载。"
+    ],
+    "pits": [
+      "vector 插入后，插入点及之后的迭代器、指针、引用全部失效。",
+      "循环里插入要用返回值更新迭代器，不能沿用旧迭代器。",
+      "pos 必须是本容器的合法迭代器，混用别的容器的迭代器是未定义行为。"
+    ],
+    "example": "std::vector<int> v{1, 3};\nauto it = v.insert(v.begin() + 1, 2);\n// *it == 2，v == {1, 2, 3}",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "erase"
+    ],
+    "scope": "vector",
+    "kind": "成员函数",
+    "brief": "删除一个元素或一段区间，返回被删元素之后的迭代器；边遍历边删时用。",
+    "sig": "iterator erase(const_iterator pos);\niterator erase(const_iterator first, const_iterator last);",
+    "params": [
+      [
+        "pos",
+        "要删除的单个元素位置"
+      ],
+      [
+        "first,last",
+        "要删除的左闭右开区间 [first, last)"
+      ]
+    ],
+    "ret": "返回被删元素之后那个元素的迭代器（C++11 起，以前返回 void）。",
+    "notes": [
+      "O(n)：删除点之后所有元素都要前移。",
+      "对 vector/deque/string 用。",
+      "区间版本删除 [first, last) 内的元素。"
+    ],
+    "pits": [
+      "删除点及之后的迭代器、指针、引用全部失效。",
+      "遍历中删除要写 it = v.erase(it)，不能 erase(it) 后再 ++it。",
+      "对空容器或 end() 位置调用 erase 是未定义行为。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4};\nv.erase(v.begin() + 1);\nfor (auto it = v.begin(); it != v.end(); ) {\n    if (*it == 3) it = v.erase(it); else ++it;\n}",
+    "link": "https://en.cppreference.com/w/cpp/container/vector/erase",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "erase"
+    ],
+    "scope": "map/set",
+    "kind": "成员函数",
+    "brief": "按 key 删除元素，返回删除个数（0 表示 key 不存在）；删 map/set 元素时用。",
+    "sig": "size_type erase(const Key& key);\niterator erase(const_iterator pos);  // C++11 起返回后继迭代器",
+    "params": [
+      [
+        "key",
+        "要删除的键/元素值"
+      ],
+      [
+        "pos",
+        "要删除的元素的迭代器"
+      ]
+    ],
+    "ret": "按 key 版本返回删除个数；按迭代器版本返回后继迭代器。",
+    "notes": [
+      "map/set 按 key 删除 O(log n)，multimap/multiset 可能删多个。",
+      "unordered 版本均摊 O(1)，对应接口自 C++11。",
+      "迭代器版本 C++11 起返回下一个元素的迭代器。"
+    ],
+    "pits": [
+      "erase(key) 返回 0 只说明 key 不存在，不是迭代器，别拿去做比较。",
+      "遍历中删元素用 it = m.erase(it)（C++11 起）。",
+      "multimap/multiset 的同名 erase(key) 会删掉所有同 key 元素，返回个数可能大于 1。"
+    ],
+    "example": "std::map<std::string, int> m{{\"a\", 1}, {\"b\", 2}};\nstd::size_t n = m.erase(\"a\");\n// n == 1，m 里只剩 b",
+    "link": "https://en.cppreference.com/w/cpp/container/map/erase",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "erase"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "从字符串里删除字符或一段字符；裁剪文本、去掉前后缀内容时用。",
+    "sig": "basic_string& erase(size_type pos = 0, size_type count = npos);\niterator erase(const_iterator pos);\niterator erase(const_iterator first, const_iterator last);",
+    "params": [
+      [
+        "pos",
+        "开始删除的下标"
+      ],
+      [
+        "count",
+        "删除的字符个数，默认到末尾"
+      ]
+    ],
+    "ret": "按位置版本返回 *this；迭代器版本返回删除后位置的迭代器。",
+    "notes": [
+      "O(n)：删除点之后的字符要前移。",
+      "erase() 无参数等于清空整个字符串。",
+      "删除尾部字符用 resize 或 pop_back，不要用越界的下标。"
+    ],
+    "pits": [
+      "pos > size() 会抛 std::out_of_range。",
+      "count 超过剩余长度时只删到末尾，不报错。",
+      "位置版本和迭代器版本参数含义不同，别混用。"
+    ],
+    "example": "std::string s = \"hello\";\ns.erase(1, 3);\n// s == \"ho\"\ns.erase(s.begin());\n// s == \"o\"",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/erase",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "at"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "带边界检查的元素访问，越界抛 std::out_of_range；要安全随机访问时用。",
+    "sig": "reference at(size_type pos);\nconst_reference at(size_type pos) const;",
+    "params": [
+      [
+        "pos",
+        "元素下标（map/unordered_map 的版本是 key）"
+      ]
+    ],
+    "ret": "元素（或映射值）的引用。",
+    "notes": [
+      "vector/deque/array/string 按位置访问，map/unordered_map 按 key 访问。",
+      "比 operator[] 多一次边界检查。",
+      "list 等不支持随机访问的容器没有 at。"
+    ],
+    "pits": [
+      "越界抛异常，热循环里可能比 operator[] 慢。",
+      "下标是 size_type（无符号），传负数会转成巨大值，直接抛异常。",
+      "map::at 在 key 不存在时抛 out_of_range 且不插入；operator[] 会插入。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nint a = v.at(1);\nstd::map<std::string, int> m{{\"a\", 1}};\nint b = m.at(\"a\");",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "operator"
+    ],
+    "scope": "容器通用",
+    "kind": "运算符",
+    "brief": "operator[] 下标访问：返回引用、不检查边界；vector/array/string 取元素时用。",
+    "sig": "reference operator[](size_type pos);\nconst_reference operator[](size_type pos) const;",
+    "params": [
+      [
+        "pos",
+        "元素下标，必须小于 size()"
+      ]
+    ],
+    "ret": "元素的引用，可读可写。",
+    "notes": [
+      "vector/deque/array/string 提供；list 没有。",
+      "关联容器里只有 map/unordered_map 有，语义是“不存在则插入”（见对应词条）。",
+      "vector/array/string 上 O(1)。"
+    ],
+    "pits": [
+      "越界不报错，是未定义行为，可能读到垃圾或崩溃；要检查用 at。",
+      "扩容后引用失效，别长期保存 operator[] 返回的引用。",
+      "vector<bool> 的 operator[] 返回代理对象，不是真的 bool&。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nv[1] = 20;\nint x = v[2];",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "operator"
+    ],
+    "scope": "map",
+    "kind": "运算符",
+    "brief": "map/unordered_map 的 operator[]：key 不存在就插入默认值；按 key 读写值时用。",
+    "sig": "T& operator[](const Key& key);\nT& operator[](Key&& key);  // C++11",
+    "params": [
+      [
+        "key",
+        "要访问的键；不存在则用 key 和默认构造的 T 插入"
+      ]
+    ],
+    "ret": "映射值的引用。",
+    "notes": [
+      "有插入副作用：m[k] 不抛异常，而是默认构造一个新值。",
+      "map O(log n)，unordered_map 均摊 O(1)。",
+      "只读查询用 find 或 at，不会改容器。"
+    ],
+    "pits": [
+      "查值写成 if (m[k] == 0) 会悄悄插入新元素，size 变大。",
+      "operator[] 不能用在 const map 上。",
+      "要求 T 可默认构造，不可默认构造的 T 只能用 insert/try_emplace/at。"
+    ],
+    "example": "std::map<std::string, int> m;\nm[\"a\"] = 1;\nint x = m[\"b\"];\n// x == 0，且 m 多了一个 b -> 0",
+    "link": "https://en.cppreference.com/w/cpp/container/map/operator_at",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "front"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回首元素引用（不删除）；读或改容器第一个元素时用。",
+    "sig": "reference front();\nconst_reference front() const;",
+    "ret": "第一个元素的引用。",
+    "notes": [
+      "vector/deque/list/forward_list/array/string 有。",
+      "关联容器（map/set）没有 front。",
+      "O(1)。"
+    ],
+    "pits": [
+      "空容器调用 front() 是未定义行为，先判 empty。",
+      "front() 返回引用，容器扩容或删除元素后引用失效。",
+      "stack/priority_queue 没有 front，用 top。"
+    ],
+    "example": "std::vector<int> v{1, 2};\nv.front() = 100;\nint x = v.front();",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "back"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回末尾元素引用（不删除）；读或改最后一个元素时用。",
+    "sig": "reference back();\nconst_reference back() const;",
+    "ret": "最后一个元素的引用。",
+    "notes": [
+      "vector/deque/list/array/string 有；forward_list 没有。",
+      "关联容器和 stack/queue 也没有 back。",
+      "O(1)。"
+    ],
+    "pits": [
+      "空容器调用 back() 是未定义行为。",
+      "vector 扩容后引用失效。",
+      "想“取出并删除”要 back() 再 pop_back()，pop_back 本身不返回值。"
+    ],
+    "example": "std::vector<int> v{1, 2};\nv.back() = 200;\nint x = v.back();",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "reserve"
+    ],
+    "scope": "vector/string",
+    "kind": "成员函数",
+    "brief": "预先分配至少 n 个元素的容量，避免反复扩容；已知元素数量时先扩容用。",
+    "sig": "void reserve(size_type new_cap);",
+    "params": [
+      [
+        "new_cap",
+        "请求的最小容量（元素个数）"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "只改 capacity，不改 size，也不构造元素。",
+      "vector/string/unordered_map 有 reserve；deque/list 没有。",
+      "需要重分配时 O(n)。"
+    ],
+    "pits": [
+      "reserve 后 size 仍是 0，不能直接下标访问。",
+      "reserve 触发重分配时，所有迭代器、指针、引用失效。",
+      "reserve 不会缩容；要缩用 shrink_to_fit。"
+    ],
+    "example": "std::vector<int> v;\nv.reserve(1000);\n// v.size() == 0，capacity >= 1000",
+    "link": "https://en.cppreference.com/w/cpp/container/vector/reserve",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "capacity"
+    ],
+    "scope": "vector/string",
+    "kind": "成员函数",
+    "brief": "返回当前已分配可容纳的元素个数；判断扩容时机、估算内存时用。",
+    "sig": "size_type capacity() const noexcept;",
+    "ret": "已分配容量，不小于 size()。",
+    "notes": [
+      "vector/string 有；deque/list 没有 capacity。",
+      "capacity - size() 是不扩容还能 push_back 的次数。",
+      "O(1)。"
+    ],
+    "pits": [
+      "capacity 由实现策略决定，不保证恰好等于你 reserve 的数。",
+      "不要假设填满 capacity 才扩容，实现可能提前翻倍。",
+      "capacity 大不是内存泄漏，clear 后仍然保留。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nstd::size_t c = v.capacity();\n// c >= v.size()",
+    "link": "https://en.cppreference.com/w/cpp/container/vector/capacity",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "shrink_to_fit"
+    ],
+    "scope": "vector/string",
+    "kind": "成员函数",
+    "brief": "请求把容量降到 size 大小，释放多余内存；clear 后想还内存时用。",
+    "sig": "void shrink_to_fit();  // C++11",
+    "ret": "无返回值。",
+    "notes": [
+      "非强制请求，实现可以忽略。",
+      "可能触发重分配，迭代器/指针/引用全部失效。",
+      "vector/string/deque 有。"
+    ],
+    "pits": [
+      "shrink 后马上 push_back 又要扩容，反复 shrink/push 很慢。",
+      "是请求不是保证，capacity 可能一点没降。",
+      "只有真的发生重分配才失效；标准允许实现不收缩，capacity 可能不变。"
+    ],
+    "example": "std::vector<int> v(10000, 0);\nv.clear();\nv.shrink_to_fit();\n// capacity 通常降到 0",
+    "link": "https://en.cppreference.com/w/cpp/container/vector/shrink_to_fit",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "resize"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "把元素个数改成 n：变短删尾部，变长补默认值；按数量调整容器大小时用。",
+    "sig": "void resize(size_type count);\nvoid resize(size_type count, const T& value);",
+    "params": [
+      [
+        "count",
+        "新的元素个数"
+      ],
+      [
+        "value",
+        "变长时填充的值，不填则默认构造"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "vector/deque/list/string 等序列容器有。",
+      "变长要求 T 可默认构造（单参数版本）。",
+      "缩小时只删除元素，capacity 不变。"
+    ],
+    "pits": [
+      "增长可能触发重分配，原有迭代器/指针/引用失效。",
+      "缩容不释放内存，内存压力大用 shrink_to_fit。",
+      "对 string 增长补的是空字符，不是空格。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nv.resize(5);\nv.resize(2);\n// v == {1, 2}",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "assign"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "用新内容整体替换容器元素；重新初始化容器、批量填充时用。",
+    "sig": "void assign(size_type count, const T& value);\ntemplate<class InputIt> void assign(InputIt first, InputIt last);",
+    "params": [
+      [
+        "count",
+        "填充的元素个数"
+      ],
+      [
+        "first,last",
+        "拷贝来源的左闭右开区间"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "先清空原有元素再填入新内容。",
+      "O(n)（n 为新内容个数，外加析构旧元素的代价）。",
+      "C++11 起还有 initializer_list 重载。"
+    ],
+    "pits": [
+      "原有迭代器全部失效。",
+      "assign 后 size 变成新内容大小，不是叠加。",
+      "区间来源可以是数组或其他容器，但元素类型要能转换。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nv.assign(2, 7);\n// v == {7, 7}",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "data"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "返回指向底层连续存储的指针；传给 C 接口、按指针遍历时用。",
+    "sig": "T* data() noexcept;\nconst T* data() const noexcept;",
+    "ret": "指向第一个元素的指针；空容器可能返回空指针。",
+    "notes": [
+      "vector/string/array 有；list/map 等非连续容器没有。",
+      "C++11 起 vector::data 可用；C++17 起 string::data 有非 const 重载。",
+      "O(1)。"
+    ],
+    "pits": [
+      "扩容后指针失效。",
+      "空容器 data() 可能为 nullptr，别直接解引用。",
+      "C++11 前 string 的 data() 不保证以空字符结尾，传 C 接口仍用 c_str。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nint* p = v.data();\n// p[0] == 1",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "swap"
+    ],
+    "scope": "容器通用",
+    "kind": "成员函数",
+    "brief": "交换两个容器的内容；整体交换、用空容器换出内存时用。",
+    "sig": "void swap(vector& other);  // 成员版本；C++11 起满足条件时 noexcept",
+    "ret": "无返回值。",
+    "notes": [
+      "vector/string 等常数时间；std::array 是 O(n) 逐元素交换。",
+      "swap 后迭代器仍指向原来的元素，但元素已属于另一个容器。",
+      "自由函数 std::swap 也可以交换两个容器。"
+    ],
+    "pits": [
+      "交换后不要拿旧容器的迭代器去访问新内容。",
+      "array 的 swap 不保证 noexcept，且是逐元素交换。",
+      "释放内存的惯用法：vector<int>().swap(v)，或直接 shrink_to_fit。"
+    ],
+    "example": "std::vector<int> a{1, 2};\nstd::vector<int> b{3, 4};\na.swap(b);\n// a == {3, 4}，b == {1, 2}",
+    "link": "https://en.cppreference.com/w/cpp/container",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "push_back"
+    ],
+    "scope": "vector",
+    "kind": "成员函数",
+    "brief": "在 vector 末尾追加一个元素；往动态数组尾部加数据时用。",
+    "sig": "void push_back(const T& value);\nvoid push_back(T&& value);  // C++11",
+    "params": [
+      [
+        "value",
+        "要追加的元素，会被拷贝或移动进容器"
+      ]
+    ],
+    "ret": "无返回值（所有标准版本都是 void）。",
+    "notes": [
+      "均摊 O(1)：扩容时整体搬移，摊还到每次插入。",
+      "C++11 起有右值重载，能移动的元素会被移动。",
+      "vector/deque/list/string 都有 push_back。"
+    ],
+    "pits": [
+      "扩容后原有迭代器、指针、引用全部失效。",
+      "已知数量先 reserve，能避免反复扩容。",
+      "push_back 返回 void，别写 int n = v.push_back(1)。"
+    ],
+    "example": "std::vector<int> v;\nv.push_back(1);\nv.push_back(2);\n// v == {1, 2}",
+    "link": "https://en.cppreference.com/w/cpp/container/vector/push_back",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "pop_back"
+    ],
+    "scope": "vector",
+    "kind": "成员函数",
+    "brief": "删除 vector 最后一个元素；从尾部移除数据时用。",
+    "sig": "void pop_back();",
+    "ret": "无返回值。",
+    "notes": [
+      "O(1)，不释放容量。",
+      "vector/deque/list/string 都有。",
+      "删除后 size 减 1。"
+    ],
+    "pits": [
+      "不返回被删元素，要拿值先 back() 再 pop_back()。",
+      "空容器调用 pop_back 是未定义行为。",
+      "指向最后元素的迭代器和引用失效。"
+    ],
+    "example": "std::vector<int> v{1, 2};\nv.pop_back();\n// v == {1}",
+    "link": "https://en.cppreference.com/w/cpp/container/vector/pop_back",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "emplace_back"
+    ],
+    "scope": "vector",
+    "kind": "成员函数",
+    "brief": "在 vector 末尾原地构造元素，省一次拷贝/移动；追加复杂对象时用。",
+    "sig": "template<class... Args> reference emplace_back(Args&&... args);  // C++17 起返回引用，之前为 void",
+    "params": [
+      [
+        "args",
+        "传给元素构造函数的参数，被完美转发"
+      ]
+    ],
+    "ret": "C++17 起返回新元素的引用；C++11~14 返回 void。",
+    "notes": [
+      "等价于 push_back(T(args...))，但直接在容器内存里构造。",
+      "均摊 O(1)。",
+      "参数不匹配构造函数时是编译错误，不是运行错误。"
+    ],
+    "pits": [
+      "扩容后所有迭代器/引用失效，包括它返回的引用。",
+      "对聚合类型或 initializer_list 构造，emplace_back({1,2}) 常推导失败，改用 push_back。"
+    ],
+    "example": "std::vector<std::pair<int, int>> v;\nv.emplace_back(1, 2);\nv.push_back({3, 4});",
+    "link": "https://en.cppreference.com/w/cpp/container/vector/emplace_back",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "emplace"
+    ],
+    "scope": "vector",
+    "kind": "成员函数",
+    "brief": "在指定位置原地构造元素；中间插入复杂对象、想省一次拷贝时用。",
+    "sig": "template<class... Args> iterator emplace(const_iterator pos, Args&&... args);",
+    "params": [
+      [
+        "pos",
+        "插入位置的迭代器"
+      ],
+      [
+        "args",
+        "构造元素用的参数"
+      ]
+    ],
+    "ret": "指向新插入元素的迭代器。",
+    "notes": [
+      "vector/deque/list 都有；中间插入 O(n)。",
+      "比 insert(pos, T(args...)) 少一次临时对象。",
+      "关联容器也有 emplace，语义不同。"
+    ],
+    "pits": [
+      "vector 插入后，插入点及之后的迭代器全部失效。",
+      "pos 必须是本容器的有效迭代器。",
+      "参数个数或类型不对时编译不过，报错信息通常很长。"
+    ],
+    "example": "std::vector<std::string> v{\"a\", \"c\"};\nv.emplace(v.begin() + 1, \"b\");\n// v == {\"a\", \"b\", \"c\"}",
+    "link": "https://en.cppreference.com/w/cpp/container/vector/emplace",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "push_front"
+    ],
+    "scope": "deque/list",
+    "kind": "成员函数",
+    "brief": "在容器头部插入元素；deque/list 头部加数据时用（vector 没有这个接口）。",
+    "sig": "void push_front(const T& value);\nvoid push_front(T&& value);  // C++11",
+    "params": [
+      [
+        "value",
+        "要插入到最前面的元素"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "deque/list 均摊 O(1)；用 vector 做头部插入是 O(n)。",
+      "vector 没有 push_front。",
+      "C++11 起有右值重载。"
+    ],
+    "pits": [
+      "vector 用户容易误用，编译直接失败（没有这个成员）。",
+      "deque::push_front 会让所有迭代器失效（引用仍有效）；list 不影响已有迭代器。",
+      "插入后旧的 begin() 迭代器可能失效，别缓存。"
+    ],
+    "example": "std::deque<int> d{2, 3};\nd.push_front(1);\nstd::list<int> l{2};\nl.push_front(1);",
+    "link": "https://en.cppreference.com/w/cpp/container/deque/push_front",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "pop_front"
+    ],
+    "scope": "deque/list",
+    "kind": "成员函数",
+    "brief": "删除容器头部的元素；deque/list 从队头移除时用。",
+    "sig": "void pop_front();",
+    "ret": "无返回值。",
+    "notes": [
+      "deque/list O(1)。",
+      "不返回值，要拿值先 front()。",
+      "vector 没有 pop_front。"
+    ],
+    "pits": [
+      "空容器调用是未定义行为。",
+      "deque::pop_front 后指向被删元素的迭代器和引用失效。",
+      "pop 后之前 front() 得到的引用失效。"
+    ],
+    "example": "std::deque<int> d{1, 2, 3};\nd.pop_front();\n// d == {2, 3}",
+    "link": "https://en.cppreference.com/w/cpp/container/deque/pop_front",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "emplace_front"
+    ],
+    "scope": "deque/list",
+    "kind": "成员函数",
+    "brief": "在容器头部原地构造元素；deque/list 头部插入复杂对象时用。",
+    "sig": "template<class... Args> reference emplace_front(Args&&... args);  // C++17 起返回引用，之前为 void",
+    "params": [
+      [
+        "args",
+        "传给元素构造函数的参数"
+      ]
+    ],
+    "ret": "C++17 起返回新元素引用；C++11~14 返回 void。",
+    "notes": [
+      "比 push_front(T(...)) 少一次临时对象。",
+      "deque/list 均摊 O(1)。",
+      "C++11 起提供。"
+    ],
+    "pits": [
+      "deque 版本会让所有迭代器失效。",
+      "参数必须能匹配元素构造函数。"
+    ],
+    "example": "std::list<std::pair<int, int>> l;\nl.emplace_front(1, 2);\n// 头部是 {1, 2}",
+    "link": "https://en.cppreference.com/w/cpp/container/deque/emplace_front",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "c_str"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "返回以空字符结尾的 C 字符串指针；传给 printf/fopen 等 C 接口时用。",
+    "sig": "const char* c_str() const noexcept;",
+    "ret": "指向内部缓冲的 const char*，以空字符结尾。",
+    "notes": [
+      "O(1)，不拷贝。",
+      "C++11 起 data() 也保证空字符结尾，但传 C 接口仍习惯用 c_str。",
+      "缓冲由 string 自己管理。"
+    ],
+    "pits": [
+      "指针在字符串修改、重新分配或析构后失效。",
+      "不要 free 或 delete 这个指针。",
+      "C++17 起有非 const 的 data()，但没有非 const 的 c_str()。"
+    ],
+    "example": "std::string s = \"hello\";\nconst char* p = s.c_str();\nstd::printf(\"%s\", p);",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/c_str",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "substr"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "取子串并返回新的 string；截取一段文本时用（不修改原串）。",
+    "sig": "basic_string substr(size_type pos = 0, size_type count = npos) const;",
+    "params": [
+      [
+        "pos",
+        "起始下标"
+      ],
+      [
+        "count",
+        "最多取多少个字符，默认取到末尾"
+      ]
+    ],
+    "ret": "新的 string，内容是 [pos, pos+count) 截断到末尾。",
+    "notes": [
+      "O(count)，分配新字符串并拷贝。",
+      "count 超过剩余长度时自动截到末尾。",
+      "只读场景可用 string_view::substr 避免拷贝（C++17）。"
+    ],
+    "pits": [
+      "pos > size() 抛 std::out_of_range。",
+      "循环里大量 substr 会产生大量临时字符串，考虑 string_view 或直接下标。"
+    ],
+    "example": "std::string s = \"abcdef\";\nstd::string a = s.substr(1, 3);\n// a == \"bcd\"",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/substr",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "find"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "查找子串或字符首次出现的位置；判断包含、定位内容时用。",
+    "sig": "size_type find(const basic_string& str, size_type pos = 0) const;\nsize_type find(char ch, size_type pos = 0) const;",
+    "params": [
+      [
+        "str/ch",
+        "要找的子串或字符"
+      ],
+      [
+        "pos",
+        "从哪个下标开始找"
+      ]
+    ],
+    "ret": "首次出现的下标；找不到返回 npos。",
+    "notes": [
+      "最坏 O(size * 子串长度)，实现常做优化。",
+      "string 的 find 找子串；std::find 是逐个元素找，别混淆。",
+      "返回值要和 npos 比较。"
+    ],
+    "pits": [
+      "if (s.find(x)) 在下标 0 时返回 0 被当成假，必须写 s.find(x) != std::string::npos。",
+      "返回 npos 是无符号最大值，赋给 int 会变成 -1。",
+      "找字符用 find(char) 更直接，不必构造临时 string。"
+    ],
+    "example": "std::string s = \"hello world\";\nauto p = s.find(\"world\");\nif (p != std::string::npos) { /* 找到 */ }",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/find",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "rfind"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "从后往前查找子串或字符最后出现的位置；找后缀、最后一次出现时用。",
+    "sig": "size_type rfind(const basic_string& str, size_type pos = npos) const;\nsize_type rfind(char ch, size_type pos = npos) const;",
+    "params": [
+      [
+        "str/ch",
+        "要找的内容"
+      ],
+      [
+        "pos",
+        "从这个下标开始向前找，默认从末尾"
+      ]
+    ],
+    "ret": "最后一次出现的下标；找不到返回 npos。",
+    "notes": [
+      "pos 是搜索起点（含），不是搜索长度。",
+      "配合 substr 常用于取文件扩展名、最后一个分隔符后的内容。"
+    ],
+    "pits": [
+      "pos 默认是 npos，含义是“从末尾开始找”，不是“不找”。",
+      "s.rfind('.') 返回 npos 时先判断再 substr，否则抛 out_of_range。"
+    ],
+    "example": "std::string path = \"a/b/c.txt\";\nauto p = path.rfind('.');\nstd::string ext = path.substr(p + 1);\n// ext == \"txt\"",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/rfind",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "find_first_of"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "查找第一个属于给定字符集合的字符；按“任意一个字符”定位时用。",
+    "sig": "size_type find_first_of(const basic_string& str, size_type pos = 0) const;\nsize_type find_first_of(const char* s, size_type pos, size_type count) const;",
+    "params": [
+      [
+        "str",
+        "字符集合，任一字符命中即可"
+      ],
+      [
+        "pos",
+        "开始查找的下标"
+      ]
+    ],
+    "ret": "第一个命中集合中任一字符的下标；找不到返回 npos。",
+    "notes": [
+      "是“集合任意匹配”，不是找整个子串；找子串用 find。",
+      "还有 find_first_not_of / find_last_of 一组接口。"
+    ],
+    "pits": [
+      "把它当 find 用会找错位置。",
+      "字符集合传空串时永远返回 npos。"
+    ],
+    "example": "std::string s = \"key=value\";\nauto p = s.find_first_of(\"=:\");\n// p == 3",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/find_first_of",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "npos"
+    ],
+    "scope": "string",
+    "kind": "对象",
+    "brief": "表示“没找到”或“直到末尾”的特殊常量；所有 find 系列和 substr 用它当哨兵。",
+    "sig": "static const size_type npos = size_type(-1);  // 即 size_type 的最大值",
+    "ret": "size_type 的最大值。",
+    "notes": [
+      "是 static 常量成员，用 std::string::npos 访问。",
+      "长度类参数传 npos 表示“到末尾”。",
+      "C++17 起可直接用 string_view::npos。"
+    ],
+    "pits": [
+      "npos 是无符号最大值，和 int 比较会有符号转换问题。",
+      "s.find(c) < npos 恒为真，没有意义，要直接 == / != npos。",
+      "把 find 返回值存进 int 会把 npos 变成 -1，判断逻辑可能悄悄错。"
+    ],
+    "example": "std::string s = \"abc\";\nif (s.find('x') == std::string::npos) {\n    // 没找到\n}",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/npos",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "length"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "返回字符串的字节长度，等价于 size()；取长度、判空时用。",
+    "sig": "size_type length() const noexcept;",
+    "ret": "字符个数（即字节数）。",
+    "notes": [
+      "与 size() 完全相同，按可读性选择。",
+      "不包含结尾的空字符。",
+      "对 UTF-8 是字节数，中文一个字通常占 3 字节。"
+    ],
+    "pits": [
+      "length 不是字符数，UTF-8 多字节字符要自己解码。",
+      "空字符串 length() 为 0。"
+    ],
+    "example": "std::string s = \"abc\";\nstd::size_t n = s.length();\n// n == 3",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "append"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "在字符串末尾追加内容；拼接字符串时用（比 operator+ 更可控）。",
+    "sig": "basic_string& append(const basic_string& str);\nbasic_string& append(const char* s);\nbasic_string& append(size_type count, char ch);",
+    "params": [
+      [
+        "str/s",
+        "要追加的内容"
+      ],
+      [
+        "count",
+        "追加的字符个数"
+      ]
+    ],
+    "ret": "返回 *this 的引用，可链式调用。",
+    "notes": [
+      "追加 n 个字符均摊 O(n)。",
+      "可能重新分配，内部的指针/迭代器失效。",
+      "和 += 的区别：append 支持“追加 count 个字符”。"
+    ],
+    "pits": [
+      "返回引用，别忽略返回值就以为失败。",
+      "追加后之前保存的 c_str()/data() 指针失效。",
+      "追加大段内容可能多次重分配，先 reserve 能减少开销。"
+    ],
+    "example": "std::string s = \"ab\";\ns.append(\"cd\");\ns.append(2, '!');\n// s == \"abcd!!\"",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/append",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "replace"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "用新内容替换字符串的一段；改写局部文本时用。",
+    "sig": "basic_string& replace(size_type pos, size_type count, const basic_string& str);\nbasic_string& replace(size_type pos, size_type count, const char* s);",
+    "params": [
+      [
+        "pos",
+        "被替换区间的起始下标"
+      ],
+      [
+        "count",
+        "被替换的字符个数"
+      ],
+      [
+        "str/s",
+        "替换成的内容"
+      ]
+    ],
+    "ret": "返回 *this 的引用。",
+    "notes": [
+      "替换后长度可以变。",
+      "O(n)，后面内容要移动。",
+      "还有迭代器版本，能配合 find 精确定位。"
+    ],
+    "pits": [
+      "pos > size() 抛 out_of_range。",
+      "count 超出剩余长度时按到末尾处理，不报错。",
+      "用 find 的返回值当 pos 前先判断 != npos，否则 find 失败会直接抛异常。"
+    ],
+    "example": "std::string s = \"hello world\";\ns.replace(6, 5, \"there\");\n// s == \"hello there\"",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/replace",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "compare"
+    ],
+    "scope": "string",
+    "kind": "成员函数",
+    "brief": "按字典序比较两个字符串；排序、大小比较、判断前缀关系时用。",
+    "sig": "int compare(const basic_string& str) const;\nint compare(size_type pos1, size_type count1, const basic_string& str) const;",
+    "params": [
+      [
+        "str",
+        "要比较的另一个字符串"
+      ],
+      [
+        "pos1,count1",
+        "从 *this 的 pos1 开始取 count1 个字符参与比较"
+      ]
+    ],
+    "ret": "小于返回负数，相等返回 0，大于返回正数。",
+    "notes": [
+      "返回值不保证是 -1/0/1，只保证符号。",
+      "按 char 的数值比较，不是本地化顺序。",
+      "C++20 起可以用 <=> 更直观。"
+    ],
+    "pits": [
+      "别写 s.compare(t) == -1，标准只保证负数。",
+      "排序时用 s < t 更直观，compare 主要给需要三态结果的地方用。"
+    ],
+    "example": "std::string a = \"abc\";\nstd::string b = \"abd\";\nint r = a.compare(b);\n// r < 0",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/compare",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "stoi"
+    ],
+    "scope": "string",
+    "kind": "函数",
+    "brief": "把字符串转成 int；解析用户输入、读配置数字时用，失败抛异常。",
+    "sig": "int stoi(const std::string& str, std::size_t* pos = nullptr, int base = 10);  // C++11",
+    "params": [
+      [
+        "str",
+        "要转换的字符串"
+      ],
+      [
+        "pos",
+        "可选，返回第一个未转换字符的下标"
+      ],
+      [
+        "base",
+        "进制，默认 10（0 表示自动判断）"
+      ]
+    ],
+    "ret": "转换得到的 int。",
+    "notes": [
+      "会跳过前导空白，从第一个可转换字符开始，遇到非法字符就停。",
+      "没有可转换字符抛 std::invalid_argument，超出 int 范围抛 std::out_of_range。",
+      "同族还有 stol/stoll/stoul/stof/stod。"
+    ],
+    "pits": [
+      "stoi(\"12abc\") 返回 12 而不是报错，要完整校验得看 pos 是否到末尾。",
+      "不异常安全地转换就用 std::from_chars（C++17）或自己校验。",
+      "空串或只有空白会直接抛 invalid_argument。"
+    ],
+    "example": "std::string s = \"42abc\";\nint n = std::stoi(s);\n// n == 42，停在第一个非数字字符",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/stol",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "stol"
+    ],
+    "scope": "string",
+    "kind": "函数",
+    "brief": "把字符串转成 long；解析可能超出 int 范围的整数时用。",
+    "sig": "long stol(const std::string& str, std::size_t* pos = nullptr, int base = 10);  // C++11",
+    "params": [
+      [
+        "str",
+        "要转换的字符串"
+      ],
+      [
+        "pos",
+        "可选，第一个未转换字符的下标"
+      ],
+      [
+        "base",
+        "进制，默认 10"
+      ]
+    ],
+    "ret": "转换得到的 long。",
+    "notes": [
+      "规则和 stoi 一样：跳前导空白，遇非法字符停。",
+      "long 在 Windows 是 32 位，Linux 64 位是 64 位，跨平台注意。",
+      "超过 long 范围抛 std::out_of_range。"
+    ],
+    "pits": [
+      "Windows 上 long 和 int 都是 32 位，别以为 stol 能装下更大值。",
+      "没有可转换字符时抛 invalid_argument。"
+    ],
+    "example": "std::string s = \"123456\";\nlong n = std::stol(s);\n// n == 123456L",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/stol",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "stoll"
+    ],
+    "scope": "string",
+    "kind": "函数",
+    "brief": "把字符串转成 long long；解析大整数（64 位）时用。",
+    "sig": "long long stoll(const std::string& str, std::size_t* pos = nullptr, int base = 10);  // C++11",
+    "params": [
+      [
+        "str",
+        "要转换的字符串"
+      ],
+      [
+        "pos",
+        "可选，第一个未转换字符的下标"
+      ],
+      [
+        "base",
+        "进制，默认 10"
+      ]
+    ],
+    "ret": "转换得到的 long long（至少 64 位）。",
+    "notes": [
+      "跨平台都是 64 位，比 stol 更适合存大数。",
+      "超过范围抛 std::out_of_range。",
+      "解析时间戳、文件大小这类大数常用。"
+    ],
+    "pits": [
+      "依然会接受前缀垃圾以外的前导空白和部分数字，需要严格校验时配合 pos。",
+      "无符号超大数（> 2^63-1）要用 stoull。"
+    ],
+    "example": "std::string s = \"9000000000\";\nlong long n = std::stoll(s);\n// n == 9000000000LL",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/stol",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "stod"
+    ],
+    "scope": "string",
+    "kind": "函数",
+    "brief": "把字符串转成 double；解析小数、科学计数法文本时用。",
+    "sig": "double stod(const std::string& str, std::size_t* pos = nullptr);  // C++11",
+    "params": [
+      [
+        "str",
+        "要转换的字符串"
+      ],
+      [
+        "pos",
+        "可选，第一个未转换字符的下标"
+      ]
+    ],
+    "ret": "转换得到的 double。",
+    "notes": [
+      "接受小数点和科学计数法，如 \"3.14\"、\"1e3\"。",
+      "没有可转换字符抛 invalid_argument。",
+      "同族 stof 返回 float，stold 返回 long double。"
+    ],
+    "pits": [
+      "超出 double 范围抛 out_of_range。",
+      "精确的十进制小数转 double 有二进制误差，涉及金额别用 double。"
+    ],
+    "example": "std::string s = \"3.14\";\ndouble d = std::stod(s);\n// d == 3.14",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/stof",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "to_string"
+    ],
+    "scope": "string",
+    "kind": "函数",
+    "brief": "把数字转成 std::string；日志、拼接输出、格式化字符串时用。",
+    "sig": "std::string to_string(int value);\nstd::string to_string(double value);\nstd::string to_string(long long value);",
+    "params": [
+      [
+        "value",
+        "要转换的数字，重载覆盖整数和浮点类型"
+      ]
+    ],
+    "ret": "数字的十进制字符串表示。",
+    "notes": [
+      "整数版本是精确的；浮点版本默认 6 位小数，不受格式控制。",
+      "C++11 起可用，string 头文件里。",
+      "和 std::stoi 等组成一进一出。"
+    ],
+    "pits": [
+      "浮点转换精度不可控，要格式控制请用 sprintf/std::format（C++20）。",
+      "拼接大量数字会反复分配，性能敏感时先 reserve 或用字符串流。"
+    ],
+    "example": "std::string s = std::to_string(42);\nstd::string t = std::to_string(3.14);\n// s == \"42\"，t 类似 \"3.140000\"",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/to_string",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "getline"
+    ],
+    "scope": "string",
+    "kind": "函数",
+    "brief": "从输入流读一整行到 string；按行读取输入、处理文本时用。",
+    "sig": "std::istream& getline(std::istream& is, std::string& str, char delim = '\\n');",
+    "params": [
+      [
+        "is",
+        "输入流，如 std::cin 或 ifstream"
+      ],
+      [
+        "str",
+        "读入的目标字符串，会先被清空"
+      ],
+      [
+        "delim",
+        "分隔符，默认换行"
+      ]
+    ],
+    "ret": "返回 is 的引用，可用于 while 条件判断。",
+    "notes": [
+      "读走分隔符但不存进 str，str 不含换行。",
+      "读到文件末尾或失败时返回的流在布尔上下文中为 false。",
+      "和 >> 混用时要注意残留的换行。"
+    ],
+    "pits": [
+      "cin >> n 之后残留 '\\n'，紧接着 getline 会读到空行，要先 cin.ignore()。",
+      "while (std::getline(...)) 里别用 !eof() 当条件，容易多读一次。",
+      "getline 是函数模板，ADL 或 std:: 前缀要写清。"
+    ],
+    "example": "std::string line;\nwhile (std::getline(std::cin, line)) {\n    // 按行处理\n}",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string/getline",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "operator"
+    ],
+    "scope": "string",
+    "kind": "运算符",
+    "brief": "operator+ 拼接字符串、operator+= 原地追加；拼接文本时用。",
+    "sig": "std::string operator+(const std::string& lhs, const std::string& rhs);\nstd::string& operator+=(const std::string& str);",
+    "params": [
+      [
+        "lhs/rhs",
+        "至少一个是 std::string（或可转换的类型）"
+      ]
+    ],
+    "ret": "operator+ 返回新字符串；operator+= 返回 *this 的引用。",
+    "notes": [
+      "+= 原地追加，通常比反复 + 更省事。",
+      "两侧至少有一个是 std::string；两个字面量相加会退化成指针运算，编译报错。",
+      "C++11 起有右值重载，能复用临时对象。"
+    ],
+    "pits": [
+      "循环里 s = s + x 每次新建字符串，是 O(n^2)，改用 s += x 或 reserve。",
+      "不能把两个字符串字面量用 + 拼，比如 \"a\" + \"b\"，要写成 std::string(\"a\") + \"b\"。",
+      "operator+ 产生临时对象，返回引用会悬空。"
+    ],
+    "example": "std::string a = \"ab\";\nstd::string b = a + \"cd\";\na += '!';\n// b == \"abcd\"，a == \"ab!\"",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "string_view"
+    ],
+    "scope": "string_view",
+    "kind": "类",
+    "brief": "只读、不拥有数据的字符串视图；传参只读字符串时用可避免拷贝。",
+    "sig": "class string_view;  // C++17，std::basic_string_view<char> 的别名",
+    "notes": [
+      "底层是一个指针 + 长度，拷贝是 O(1)，不分配内存。",
+      "substr 返回新的视图，不拷贝字符。",
+      "不能替代需要 null 结尾或可写缓冲的接口。"
+    ],
+    "pits": [
+      "不拥有数据：源 string 临时对象或已释放缓冲会导致悬空。",
+      "data() 不保证以空字符结尾，不能直接传 C 接口。",
+      "没有 c_str()，转 string 要显式 std::string(sv)。"
+    ],
+    "example": "std::string_view sv = \"hello world\";\nauto sub = sv.substr(0, 5);\n// sub == \"hello\"，没有拷贝",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string_view",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "remove_prefix"
+    ],
+    "scope": "string_view",
+    "kind": "成员函数",
+    "brief": "从视图头部去掉 n 个字符（只移动起点）；解析时逐段剪切用，O(1)。",
+    "sig": "void remove_prefix(size_type n);  // C++17",
+    "params": [
+      [
+        "n",
+        "要去掉的字符个数，必须 ≤ size()"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "纯视图操作：不拷贝、不释放，size 减小、data 前移。",
+      "O(1)。",
+      "常配合 find 做简单的分词。"
+    ],
+    "pits": [
+      "n > size() 是未定义行为，不是异常。",
+      "只影响当前视图，底层字符串没变。",
+      "视图指向的源数据失效后，再访问就是悬空。"
+    ],
+    "example": "std::string_view sv = \"https://x\";\nsv.remove_prefix(8);\n// sv == \"x\"",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string_view/remove_prefix",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "remove_suffix"
+    ],
+    "scope": "string_view",
+    "kind": "成员函数",
+    "brief": "从视图尾部去掉 n 个字符；去掉扩展名等尾部内容时用，O(1)。",
+    "sig": "void remove_suffix(size_type n);  // C++17",
+    "params": [
+      [
+        "n",
+        "要去掉的末尾字符个数，必须 ≤ size()"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "只改视图长度，不拷贝、不修改原字符串。",
+      "O(1)。",
+      "与 remove_prefix 一对，用来缩小视图区间。"
+    ],
+    "pits": [
+      "n > size() 是未定义行为，调用前先判断。",
+      "视图不拥有数据，源被销毁后视图悬空。",
+      "不要用它去“删除”原字符串里的字符，它做不到。"
+    ],
+    "example": "std::string_view sv = \"file.txt\";\nsv.remove_suffix(4);\n// sv == \"file\"",
+    "link": "https://en.cppreference.com/w/cpp/string/basic_string_view/remove_suffix",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "at"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "按 key 取映射值，key 不存在抛 out_of_range；安全读取 map 时用。",
+    "sig": "T& at(const Key& key);\nconst T& at(const Key& key) const;",
+    "params": [
+      [
+        "key",
+        "要查找的键"
+      ]
+    ],
+    "ret": "映射值的引用。",
+    "notes": [
+      "和 operator[] 不同：key 不存在时抛异常，不会插入。",
+      "map 查找 O(log n)，unordered_map 均摊 O(1)。",
+      "const map 只能用 at 或 find 读。"
+    ],
+    "pits": [
+      "不存在的 key 会抛 std::out_of_range，异常比返回默认值代价高。",
+      "热路径里先 find 再 at 会查两次，直接用 find 拿迭代器。"
+    ],
+    "example": "std::map<std::string, int> m{{\"a\", 1}};\nint x = m.at(\"a\");\n// m.at(\"b\") 抛 std::out_of_range",
+    "link": "https://en.cppreference.com/w/cpp/container/map/at",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "find"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "查找 key，返回指向该元素的迭代器；判断 key 是否存在并取值时用。",
+    "sig": "iterator find(const Key& key);\nconst_iterator find(const Key& key) const;",
+    "params": [
+      [
+        "key",
+        "要查找的键"
+      ]
+    ],
+    "ret": "找到返回迭代器，找不到返回 end()。",
+    "notes": [
+      "map/set 查找 O(log n)，unordered 版本均摊 O(1)。",
+      "找到后 it->first 是 key，it->second 是值（map）。",
+      "只读查找用 find，不会像 operator[] 那样插入。"
+    ],
+    "pits": [
+      "必须先判断 it != end() 再解引用，否则未定义行为。",
+      "别写 if (m.find(k))，迭代器没有到 bool 的转换（部分旧实现有歧义），要写 m.find(k) != m.end()。"
+    ],
+    "example": "std::map<std::string, int> m{{\"a\", 1}};\nauto it = m.find(\"a\");\nif (it != m.end()) { int v = it->second; }",
+    "link": "https://en.cppreference.com/w/cpp/container/map/find",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "count"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "数某个 key 出现了几次；map 里返回 0/1，用来判断存在性。",
+    "sig": "size_type count(const Key& key) const;",
+    "params": [
+      [
+        "key",
+        "要统计的键"
+      ]
+    ],
+    "ret": "出现的次数，map/set 只会是 0 或 1。",
+    "notes": [
+      "multimap/multiset 可能大于 1。",
+      "C++20 有更直白的 contains。",
+      "查找复杂度同 find。"
+    ],
+    "pits": [
+      "只想知道存在与否时 count 语义清楚，但 C++20 起 contains 更直接。",
+      "别用 count 当布尔值以外的数字，map 里它最多就是 1。"
+    ],
+    "example": "std::map<std::string, int> m{{\"a\", 1}};\nstd::size_t n = m.count(\"a\");\n// n == 1",
+    "link": "https://en.cppreference.com/w/cpp/container/map/count",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "contains"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "判断 key 是否存在，返回 bool；C++20 起最直观的存在性检查。",
+    "sig": "bool contains(const Key& key) const;  // C++20",
+    "params": [
+      [
+        "key",
+        "要检查的键"
+      ]
+    ],
+    "ret": "存在返回 true，否则 false。",
+    "notes": [
+      "等价于 find(key) != end()，但更易读。",
+      "map/set/unordered 版本都有。",
+      "查找复杂度同 find。"
+    ],
+    "pits": [
+      "C++17 及以前没有这个接口，写了编译不过；工程里要确认标准版本。",
+      "contains 只判断存在，取值还要再 find 或 at。"
+    ],
+    "example": "std::map<std::string, int> m{{\"a\", 1}};\nif (m.contains(\"a\")) {\n    // 存在\n}",
+    "link": "https://en.cppreference.com/w/cpp/container/map/contains",
+    "since": "C++20"
+  },
+  {
+    "keys": [
+      "lower_bound"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "返回第一个 key 不小于给定 key 的元素；找有序区间的起点时用。",
+    "sig": "iterator lower_bound(const Key& key);\nconst_iterator lower_bound(const Key& key) const;",
+    "params": [
+      [
+        "key",
+        "比较用的键"
+      ]
+    ],
+    "ret": "第一个满足 element >= key 的迭代器；都比 key 小时返回 end()。",
+    "notes": [
+      "map/set 有序，所以 O(log n)。",
+      "配合 upper_bound 取出一段 key 区间。",
+      "unordered 容器不支持，它无序。"
+    ],
+    "pits": [
+      "语义是“第一个不小于”，不是“第一个大于”。",
+      "返回 end() 时要先判断，别直接解引用。"
+    ],
+    "example": "std::map<int, int> m{{1, 10}, {3, 30}};\nauto it = m.lower_bound(2);\n// it 指向 key 3",
+    "link": "https://en.cppreference.com/w/cpp/container/map/lower_bound",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "upper_bound"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "返回第一个 key 严格大于给定 key 的元素；取区间终点时用。",
+    "sig": "iterator upper_bound(const Key& key);\nconst_iterator upper_bound(const Key& key) const;",
+    "params": [
+      [
+        "key",
+        "比较用的键"
+      ]
+    ],
+    "ret": "第一个满足 element > key 的迭代器；没有则返回 end()。",
+    "notes": [
+      "和 lower_bound 一起构成左闭右开的 key 区间。",
+      "map/set O(log n)。",
+      "unordered 容器不支持。"
+    ],
+    "pits": [
+      "upper_bound(k) 不包含 key 等于 k 的元素，遍历区间别把端点算进去。",
+      "返回 end() 时要判断。"
+    ],
+    "example": "std::map<int, int> m{{1, 10}, {3, 30}};\nauto it = m.upper_bound(1);\n// it 指向 key 3",
+    "link": "https://en.cppreference.com/w/cpp/container/map/upper_bound",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "equal_range"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "一次返回 key 相等的区间 [lower_bound, upper_bound)；取 multimap 多值时用。",
+    "sig": "std::pair<iterator, iterator> equal_range(const Key& key);",
+    "params": [
+      [
+        "key",
+        "要找的键"
+      ]
+    ],
+    "ret": "pair，first 是 lower_bound，second 是 upper_bound。",
+    "notes": [
+      "map/set 中区间最多一个元素；multimap/multiset 可能是多个。",
+      "等于同时做 lower_bound 和 upper_bound，只查一次树。",
+      "O(log n)。"
+    ],
+    "pits": [
+      "second 是右开端点，遍历写 for (it = first; it != second; ++it)。",
+      "返回值是 pair 的迭代器，别误当元素。"
+    ],
+    "example": "std::multimap<int, char> mm{{1, 'a'}, {1, 'b'}};\nauto r = mm.equal_range(1);\nfor (auto it = r.first; it != r.second; ++it) { char c = it->second; }",
+    "link": "https://en.cppreference.com/w/cpp/container/map/equal_range",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "try_emplace"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "key 不存在才原地构造并插入，存在则什么都不做；C++17 安全插入用。",
+    "sig": "template<class... Args> std::pair<iterator, bool> try_emplace(const Key& key, Args&&... args);",
+    "params": [
+      [
+        "key",
+        "要插入的键"
+      ],
+      [
+        "args",
+        "构造映射值用的参数，仅在插入时求值"
+      ]
+    ],
+    "ret": "pair：迭代器指向元素，bool 表示是否真的插入了。",
+    "notes": [
+      "key 已存在时不会覆盖旧值，也不会构造新值。",
+      "比 emplace 更安全：emplace 可能即使 key 存在也构造出值。",
+      "C++17 起；map/unordered_map 都有。"
+    ],
+    "pits": [
+      "C++17 之前没有，老代码用 insert(pair) 或 find+insert。",
+      "args 里的参数只在插入发生时才被消耗，别依赖副作用。"
+    ],
+    "example": "std::map<std::string, int> m;\nauto r = m.try_emplace(\"a\", 1);\n// r.second == true，m[\"a\"] == 1",
+    "link": "https://en.cppreference.com/w/cpp/container/map/try_emplace",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "insert_or_assign"
+    ],
+    "scope": "map",
+    "kind": "成员函数",
+    "brief": "key 不存在就插入，存在就赋值覆盖；写“更新或新增”逻辑时用。",
+    "sig": "template<class M> std::pair<iterator, bool> insert_or_assign(const Key& key, M&& obj);  // C++17",
+    "params": [
+      [
+        "key",
+        "键"
+      ],
+      [
+        "obj",
+        "要插入或赋给的值"
+      ]
+    ],
+    "ret": "pair：迭代器指向元素，bool 表示是插入（true）还是覆盖（false）。",
+    "notes": [
+      "语义相当于 m[key] = value，但不要求映射值可默认构造。",
+      "C++17 起；map/unordered_map 都有。",
+      "O(log n) / 均摊 O(1)。"
+    ],
+    "pits": [
+      "C++17 之前用 operator[] 或 insert + erase 实现。",
+      "和 operator[] 一样会改动容器，只读场景别用。"
+    ],
+    "example": "std::map<std::string, int> m;\nm.insert_or_assign(\"a\", 1);\nm.insert_or_assign(\"a\", 2);\n// m[\"a\"] == 2",
+    "link": "https://en.cppreference.com/w/cpp/container/map/insert_or_assign",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "bucket_count"
+    ],
+    "scope": "unordered_map",
+    "kind": "成员函数",
+    "brief": "返回哈希表的桶数量；调哈希性能、排查冲突时用。",
+    "sig": "size_type bucket_count() const noexcept;",
+    "ret": "当前桶的个数。",
+    "notes": [
+      "逻辑桶数，不等于元素个数。",
+      "unordered_map/unordered_set 有，map/set 没有。",
+      "O(1)。"
+    ],
+    "pits": [
+      "桶数会随插入自动增长，不能当 size 用。",
+      "桶数量不保证和 rehash 传入的 count 相等，只是不小于。"
+    ],
+    "example": "std::unordered_map<int, int> m;\nm.reserve(100);\nauto n = m.bucket_count();\n// n >= 100 左右",
+    "link": "https://en.cppreference.com/w/cpp/container/unordered_map/bucket_count",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "load_factor"
+    ],
+    "scope": "unordered_map",
+    "kind": "成员函数",
+    "brief": "返回当前装载因子（size / bucket_count）；判断是否需要触发 rehash 时用。",
+    "sig": "float load_factor() const noexcept;",
+    "ret": "平均每个桶的元素个数，size() / bucket_count()。",
+    "notes": [
+      "装载因子超过 max_load_factor 时会自动 rehash。",
+      "默认 max_load_factor 通常为 1.0。",
+      "unordered 容器有，map/set 没有这个概念。"
+    ],
+    "pits": [
+      "不是越小越好：太小浪费桶，太大冲突多、查询变慢。",
+      "rehash 后这个值会变，不是常量。"
+    ],
+    "example": "std::unordered_map<int, int> m;\nm[1] = 1;\nfloat lf = m.load_factor();",
+    "link": "https://en.cppreference.com/w/cpp/container/unordered_map/load_factor",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "rehash"
+    ],
+    "scope": "unordered_map",
+    "kind": "成员函数",
+    "brief": "手动把桶数改到至少 count；已知元素规模时预先调整哈希表用。",
+    "sig": "void rehash(size_type count);",
+    "params": [
+      [
+        "count",
+        "请求的最小桶数；实际桶数会满足 size/max_load_factor 与 count"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "重排所有元素，O(size)。",
+      "和 reserve(n) 的关系：reserve 按元素个数算，rehash 按桶数算。",
+      "元素数量已知时先 reserve 或 rehash，能避免多次扩容。"
+    ],
+    "pits": [
+      "rehash 后所有迭代器失效（引用仍有效）。",
+      "rehash(0) 可能收缩桶，但也可能什么都不做，不保证释放内存。"
+    ],
+    "example": "std::unordered_map<int, int> m;\nm.rehash(256);\n// bucket_count() >= 256",
+    "link": "https://en.cppreference.com/w/cpp/container/unordered_map/rehash",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "insert"
+    ],
+    "scope": "set",
+    "kind": "成员函数",
+    "brief": "向 set 插入元素，返回 pair<iterator, bool>；去重插入时用。",
+    "sig": "std::pair<iterator, bool> insert(const value_type& value);\nstd::pair<iterator, bool> insert(value_type&& value);  // C++11",
+    "params": [
+      [
+        "value",
+        "要插入的元素"
+      ]
+    ],
+    "ret": "pair：first 指向该元素，second 表示是否插入成功（已存在为 false）。",
+    "notes": [
+      "set 自动去重并保持有序，O(log n)。",
+      "multiset 版本返回 iterator，不去重。",
+      "C++11 起还有 emplace / insert(initializer_list)。"
+    ],
+    "pits": [
+      "用返回值 second 判断是否真的插入了，别只看 first。",
+      "set/map 插入不会让任何迭代器或引用失效（节点不搬动）。",
+      "对 vector 之类的 insert 签名完全不同，别混。"
+    ],
+    "example": "std::set<int> s;\nauto r = s.insert(1);\n// r.second == true\nr = s.insert(1);\n// r.second == false",
+    "link": "https://en.cppreference.com/w/cpp/container/set/insert",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "find"
+    ],
+    "scope": "set",
+    "kind": "成员函数",
+    "brief": "在 set 里查找元素，返回迭代器；判断某值是否存在时用。",
+    "sig": "iterator find(const Key& key);\nconst_iterator find(const Key& key) const;",
+    "params": [
+      [
+        "key",
+        "要查找的元素值"
+      ]
+    ],
+    "ret": "找到返回迭代器，找不到返回 end()。",
+    "notes": [
+      "set 有序查找 O(log n)，unordered_set 均摊 O(1)。",
+      "set 的迭代器是 const 的，不能通过它修改元素。",
+      "C++20 有 contains 可直接判断。"
+    ],
+    "pits": [
+      "先判断 != end() 再解引用。",
+      "set 元素不能改（改了会破坏排序），要改只能 erase 再 insert。"
+    ],
+    "example": "std::set<int> s{1, 2, 3};\nauto it = s.find(2);\nif (it != s.end()) { /* 存在 */ }",
+    "link": "https://en.cppreference.com/w/cpp/container/set/find",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "count"
+    ],
+    "scope": "set",
+    "kind": "成员函数",
+    "brief": "数元素在 set 中出现几次；set 里只会是 0 或 1，用来判断存在性。",
+    "sig": "size_type count(const Key& key) const;",
+    "params": [
+      [
+        "key",
+        "要统计的元素值"
+      ]
+    ],
+    "ret": "出现次数，set 中为 0 或 1。",
+    "notes": [
+      "multiset 中可能大于 1。",
+      "等价于 find(key) != end() 的判断，但返回数字。",
+      "C++20 起 contains 更直白。"
+    ],
+    "pits": [
+      "只判断存在时 count 和 find 都能用，但 count 语义稍绕。",
+      "别把返回值当元素内容。"
+    ],
+    "example": "std::set<int> s{1, 2};\nstd::size_t n = s.count(2);\n// n == 1",
+    "link": "https://en.cppreference.com/w/cpp/container/set/count",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "erase"
+    ],
+    "scope": "set",
+    "kind": "成员函数",
+    "brief": "从 set 按值或迭代器删除元素；删集合元素时用。",
+    "sig": "size_type erase(const Key& key);\niterator erase(const_iterator pos);  // C++11 起返回后继迭代器",
+    "params": [
+      [
+        "key",
+        "要删除的元素值"
+      ],
+      [
+        "pos",
+        "要删除元素的迭代器"
+      ]
+    ],
+    "ret": "按值版本返回删除个数；按迭代器版本返回后继迭代器。",
+    "notes": [
+      "set 删除 O(log n)，unordered_set 均摊 O(1)。",
+      "C++11 起迭代器版本有返回值，方便遍历中删除。",
+      "multiset 的 erase(key) 会删掉所有同值元素。"
+    ],
+    "pits": [
+      "遍历中删除写 it = s.erase(it)，不要 erase(it); ++it。",
+      "erase(key) 返回 0 只表示不存在，不能当迭代器用。"
+    ],
+    "example": "std::set<int> s{1, 2, 3};\ns.erase(2);\n// s == {1, 3}",
+    "link": "https://en.cppreference.com/w/cpp/container/set/erase",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "contains"
+    ],
+    "scope": "set",
+    "kind": "成员函数",
+    "brief": "判断元素是否在 set 中，返回 bool；C++20 起读存在性最直观。",
+    "sig": "bool contains(const Key& key) const;  // C++20",
+    "params": [
+      [
+        "key",
+        "要检查的元素值"
+      ]
+    ],
+    "ret": "存在返回 true，否则 false。",
+    "notes": [
+      "等价于 find(key) != end()。",
+      "set/multiset/unordered_set 都有。",
+      "O(log n) / 均摊 O(1)。"
+    ],
+    "pits": [
+      "C++17 及以前没有，写了编译报错。",
+      "判断存在后还要取值时，用 find 一次拿到迭代器更划算。"
+    ],
+    "example": "std::set<int> s{1, 2};\nif (s.contains(1)) {\n    // 存在\n}",
+    "link": "https://en.cppreference.com/w/cpp/container/set/contains",
+    "since": "C++20"
+  },
+  {
+    "keys": [
+      "top"
+    ],
+    "scope": "stack",
+    "kind": "成员函数",
+    "brief": "返回栈顶元素引用；读栈顶时用（不自带删除）。",
+    "sig": "reference top();\nconst_reference top() const;",
+    "ret": "栈顶元素的引用。",
+    "notes": [
+      "stack 默认基于 deque，只暴露 top/push/pop。",
+      "O(1)。",
+      "要弹出用 pop()，它不返回值。"
+    ],
+    "pits": [
+      "空栈调用 top() 是未定义行为，先判 empty()。",
+      "top() 不删除元素。",
+      "stack 没有迭代器，不能遍历。"
+    ],
+    "example": "std::stack<int> st;\nst.push(1);\nst.push(2);\nint x = st.top();\n// x == 2",
+    "link": "https://en.cppreference.com/w/cpp/container/stack/top",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "push"
+    ],
+    "scope": "stack",
+    "kind": "成员函数",
+    "brief": "把元素压入栈顶；LIFO 入栈时用。",
+    "sig": "void push(const value_type& value);\nvoid push(value_type&& value);  // C++11",
+    "params": [
+      [
+        "value",
+        "要压入的元素"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "等价于底层容器的 push_back，O(1)。",
+      "stack 还有 emplace（C++11）。",
+      "用 push 后 top 就是刚压入的元素。"
+    ],
+    "pits": [
+      "push 返回 void，别拿它当值用。",
+      "栈没有容量上限检查，内存涨太快只会抛 bad_alloc。"
+    ],
+    "example": "std::stack<int> st;\nst.push(1);\nst.push(2);\n// st.top() == 2",
+    "link": "https://en.cppreference.com/w/cpp/container/stack/push",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "pop"
+    ],
+    "scope": "stack",
+    "kind": "成员函数",
+    "brief": "弹出栈顶元素（不返回它）；出栈时用，要值先 top。",
+    "sig": "void pop();",
+    "ret": "无返回值。",
+    "notes": [
+      "O(1)。",
+      "标准容器适配器的 pop 都不返回值。",
+      "出栈顺序是后进先出。"
+    ],
+    "pits": [
+      "空栈 pop 是未定义行为。",
+      "要“弹出并拿到值”必须 value = st.top(); st.pop(); 两步。",
+      "pop 后之前 top() 返回的引用失效。"
+    ],
+    "example": "std::stack<int> st;\nst.push(1);\nint x = st.top();\nst.pop();\n// x == 1，st 已空",
+    "link": "https://en.cppreference.com/w/cpp/container/stack/pop",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "top"
+    ],
+    "scope": "queue",
+    "kind": "成员函数",
+    "brief": "queue 没有 top()：队首用 front()、队尾用 back()；别把 stack 的接口套到队列上。",
+    "sig": "// queue 不提供 top()\nreference front();\nconst_reference front() const;",
+    "ret": "front() 返回队首元素的引用。",
+    "notes": [
+      "queue 是 FIFO 适配器，接口是 front/back/push/pop。",
+      "top() 是 stack 和 priority_queue 的接口。",
+      "O(1)。"
+    ],
+    "pits": [
+      "写 q.top() 直接编译失败，提示 queue 没有名为 top 的成员。",
+      "空队列 front() 是未定义行为。",
+      "注意区分：queue::front 是队首（最早入队），stack::top 是栈顶（最后入栈）。"
+    ],
+    "example": "std::queue<int> q;\nq.push(1);\nq.push(2);\nint x = q.front();\n// x == 1",
+    "link": "https://en.cppreference.com/w/cpp/container/queue/front",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "push"
+    ],
+    "scope": "queue",
+    "kind": "成员函数",
+    "brief": "把元素放到队尾；FIFO 入队时用。",
+    "sig": "void push(const value_type& value);\nvoid push(value_type&& value);  // C++11",
+    "params": [
+      [
+        "value",
+        "要入队的元素"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "等价于底层 deque 的 push_back，O(1)。",
+      "queue 还有 emplace（C++11）。",
+      "先 push 后 pop 保证 FIFO。"
+    ],
+    "pits": [
+      "push 返回 void。",
+      "queue 不是线程安全的，多线程要自己加锁或用并发队列。"
+    ],
+    "example": "std::queue<int> q;\nq.push(1);\nq.push(2);\n// q.front() == 1，q.back() == 2",
+    "link": "https://en.cppreference.com/w/cpp/container/queue/push",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "pop"
+    ],
+    "scope": "queue",
+    "kind": "成员函数",
+    "brief": "弹出队首元素（不返回它）；FIFO 出队时用。",
+    "sig": "void pop();",
+    "ret": "无返回值。",
+    "notes": [
+      "O(1)。",
+      "出队的是最早入队的元素。",
+      "要值先 front() 再 pop()。"
+    ],
+    "pits": [
+      "空队列 pop 是未定义行为。",
+      "pop 不返回元素，别写 int x = q.pop()。",
+      "pop 后之前 front() 的引用失效。"
+    ],
+    "example": "std::queue<int> q;\nq.push(1);\nint x = q.front();\nq.pop();\n// x == 1",
+    "link": "https://en.cppreference.com/w/cpp/container/queue/pop",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "top"
+    ],
+    "scope": "priority_queue",
+    "kind": "成员函数",
+    "brief": "返回堆顶元素（默认最大元素）的 const 引用；取最值时用。",
+    "sig": "const_reference top() const;",
+    "ret": "堆顶元素的 const 引用，默认是最大元素。",
+    "notes": [
+      "基于 vector + 堆算法，push/pop 都是 O(log n)。",
+      "自定义比较可用 std::greater<T> 变成小顶堆。",
+      "不能修改堆顶，只能取出来再 push。"
+    ],
+    "pits": [
+      "top() 返回 const 引用，不能直接改；要改就 pop + push。",
+      "空堆 top() 是未定义行为。",
+      "priority_queue 没有 front，只有 top。"
+    ],
+    "example": "std::priority_queue<int> pq;\npq.push(3);\npq.push(1);\nint x = pq.top();\n// x == 3",
+    "link": "https://en.cppreference.com/w/cpp/container/priority_queue/top",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "push"
+    ],
+    "scope": "priority_queue",
+    "kind": "成员函数",
+    "brief": "把元素插入优先队列并维护堆序；O(log n)。",
+    "sig": "void push(const value_type& value);\nvoid push(value_type&& value);  // C++11",
+    "params": [
+      [
+        "value",
+        "要插入的元素"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "插入后自动调整堆，堆顶始终是最大（或比较器定义的最值）。",
+      "O(log n)。",
+      "批量建堆用构造函数区间版本更快（O(n)）。"
+    ],
+    "pits": [
+      "对自定义类型要提供比较，否则编译报错。",
+      "大顶堆是默认，想要小顶堆要显式传 std::greater<typename>"
+    ],
+    "example": "std::priority_queue<int> pq;\npq.push(3);\npq.push(1);\n// pq.top() == 3",
+    "link": "https://en.cppreference.com/w/cpp/container/priority_queue/push",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "pop"
+    ],
+    "scope": "priority_queue",
+    "kind": "成员函数",
+    "brief": "弹出堆顶元素（最值），不返回它；O(log n)。",
+    "sig": "void pop();",
+    "ret": "无返回值。",
+    "notes": [
+      "弹出后重新调整堆，保持堆序。",
+      "O(log n)。",
+      "要值先 top() 再 pop()。"
+    ],
+    "pits": [
+      "空堆 pop 是未定义行为。",
+      "pop 不返回元素。",
+      "堆顶弹出后顺序不是全局有序，只是下一个最值。"
+    ],
+    "example": "std::priority_queue<int> pq;\npq.push(3);\npq.push(1);\nint x = pq.top();\npq.pop();\n// x == 3",
+    "link": "https://en.cppreference.com/w/cpp/container/priority_queue/pop",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "at"
+    ],
+    "scope": "array",
+    "kind": "成员函数",
+    "brief": "std::array 的带边界检查访问；固定数组安全随机访问时用。",
+    "sig": "reference at(size_type pos);\nconst_reference at(size_type pos) const;",
+    "params": [
+      [
+        "pos",
+        "元素下标，必须 < N"
+      ]
+    ],
+    "ret": "元素引用。",
+    "notes": [
+      "std::array 大小固定，capacity 等于 N。",
+      "越界抛 std::out_of_range，比 operator[] 安全。",
+      "O(1)。"
+    ],
+    "pits": [
+      "array 不检查 size 是否为 0，空 array 上调用是问题；先判 empty（C++11 起就有 empty）。",
+      "越界抛异常，热路径里可能不如 operator[] 快。"
+    ],
+    "example": "std::array<int, 3> a{1, 2, 3};\nint x = a.at(1);\n// x == 2",
+    "link": "https://en.cppreference.com/w/cpp/container/array/at",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "fill"
+    ],
+    "scope": "array",
+    "kind": "成员函数",
+    "brief": "把 array 所有元素赋成同一个值；固定数组批量初始化时用。",
+    "sig": "void fill(const T& value);",
+    "params": [
+      [
+        "value",
+        "要填的值"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "O(N)，逐元素赋值。",
+      "值必须可拷贝/移动。",
+      "和 assign 不同：array 长度固定，不改变大小。"
+    ],
+    "pits": [
+      "fill 只负责赋值，不改变 size（array 的 size 本来就是固定的）。",
+      "元素是对象时会对每个元素调用赋值运算符。"
+    ],
+    "example": "std::array<int, 3> a{};\na.fill(7);\n// a == {7, 7, 7}",
+    "link": "https://en.cppreference.com/w/cpp/container/array/fill",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "size"
+    ],
+    "scope": "array",
+    "kind": "成员函数",
+    "brief": "返回 array 的元素个数（编译期常量 N）；取固定数组长度时用。",
+    "sig": "constexpr size_type size() const noexcept;",
+    "ret": "元素个数，即模板参数 N。",
+    "notes": [
+      "std::array<int, 5>::size() 恒为 5，可作常量表达式使用。",
+      "O(1)，无运行时开销。",
+      "空 array 的 size 为 0。"
+    ],
+    "pits": [
+      "array 的 size 不能变，没有 resize/push_back。",
+      "传参后退化成指针的普通数组没法用 .size()，这是 std::array 的优势之一。"
+    ],
+    "example": "std::array<int, 3> a{1, 2, 3};\nstd::size_t n = a.size();\n// n == 3",
+    "link": "https://en.cppreference.com/w/cpp/container/array/size",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "make_pair"
+    ],
+    "scope": "pair/tuple",
+    "kind": "函数",
+    "brief": "推导并构造 std::pair；往容器里塞键值对、函数返回两个值时用。",
+    "sig": "template<class T1, class T2>\nstd::pair<T1, T2> make_pair(T1 x, T2 y);  // C++98 按值传参，C++11 起改用转发引用",
+    "params": [
+      [
+        "x",
+        "键/第一个元素"
+      ],
+      [
+        "y",
+        "值/第二个元素"
+      ]
+    ],
+    "ret": "构造出的 std::pair。",
+    "notes": [
+      "类型由实参自动推导，不用手写模板参数。",
+      "元素类型会按值退化，引用会被去掉。",
+      "O(1)。"
+    ],
+    "pits": [
+      "make_pair 会去掉引用，想保留引用得手写 pair<T&, ...>。",
+      "数组会退化成指针，比如 make_pair(\"ab\", 1) 的 first 是 const char*。"
+    ],
+    "example": "auto p = std::make_pair(1, \"a\");\nint k = p.first;\n// p.second 是 const char*",
+    "link": "https://en.cppreference.com/w/cpp/utility/pair/make_pair",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "get"
+    ],
+    "scope": "pair/tuple",
+    "kind": "函数",
+    "brief": "按下标取 pair/tuple 的元素；从元组里取第 I 个值时用。",
+    "sig": "template<std::size_t I, class T1, class T2> auto& get(std::pair<T1, T2>& p);\ntemplate<std::size_t I, class... Types> auto& get(std::tuple<Types...>& t);",
+    "params": [
+      [
+        "I",
+        "编译期下标，必须是常量表达式"
+      ],
+      [
+        "t/p",
+        "要取值的 tuple 或 pair"
+      ]
+    ],
+    "ret": "第 I 个元素的引用。",
+    "notes": [
+      "下标是模板参数，不能是运行时变量。",
+      "pair 用 get<0>/get<1> 取 first/second。",
+      "C++14 起 tuple 也支持 get<T>(t) 按类型取（类型唯一时）。"
+    ],
+    "pits": [
+      "get<变量>(t) 编译不过，下标必须是常量。",
+      "下标越界是编译期错误，不是运行时异常。",
+      "取出的引用在 tuple 被移动或销毁后失效。"
+    ],
+    "example": "auto t = std::make_tuple(1, 2.5, 'x');\nint a = std::get<0>(t);\ndouble b = std::get<1>(t);",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "make_tuple"
+    ],
+    "scope": "pair/tuple",
+    "kind": "函数",
+    "brief": "推导并构造 std::tuple；把多个不同类型值打包返回时用。",
+    "sig": "template<class... Types> std::tuple<Types...> make_tuple(Types&&... args);",
+    "params": [
+      [
+        "args",
+        "要打包的值，类型自动推导"
+      ]
+    ],
+    "ret": "构造出的 std::tuple。",
+    "notes": [
+      "元素类型按值退化，引用会被去掉。",
+      "C++17 起可用类模板参数推导写 std::tuple t{1, 2.0}。",
+      "O(元素个数)。"
+    ],
+    "pits": [
+      "要塞引用要用 std::ref 或手写 tuple<T&>，make_tuple 会拷贝。",
+      "元素很多时可读性差，C++17 结构化绑定更好用。"
+    ],
+    "example": "auto t = std::make_tuple(1, 2.5, 'x');\n// t 里有 int、double、char 三个元素",
+    "link": "https://en.cppreference.com/w/cpp/utility/tuple/make_tuple",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "tie"
+    ],
+    "scope": "pair/tuple",
+    "kind": "函数",
+    "brief": "把 tuple 解包到已有变量；多返回值的解包赋值、忽略某些返回值时用。",
+    "sig": "template<class... Types> std::tuple<Types&...> tie(Types&... args) noexcept;",
+    "params": [
+      [
+        "args",
+        "要接收值的已有变量"
+      ]
+    ],
+    "ret": "由这些变量的引用组成的 tuple。",
+    "notes": [
+      "tie 本身不拷贝，返回的是引用组成的 tuple。",
+      "配合 std::ignore 跳过不需要的元素。",
+      "C++17 结构化绑定更常用，但 tie 可用于先声明后赋值。"
+    ],
+    "pits": [
+      "tie 的实参必须是左值变量，不能传字面量。",
+      "用 tie 接收 tuple 时，tuple 里的元素必须能赋值给对应变量。",
+      "tie 不会检查数量，数量不匹配会编译错误。"
+    ],
+    "example": "int a, b;\nauto t = std::make_tuple(1, 2);\nstd::tie(a, b) = t;\n// a == 1，b == 2",
+    "link": "https://en.cppreference.com/w/cpp/utility/tuple/tie",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "tuple_size"
+    ],
+    "scope": "pair/tuple",
+    "kind": "类型",
+    "brief": "在编译期取 tuple-like 类型的元素个数；模板元编程、静态断言时用。",
+    "sig": "template<class T> struct tuple_size;\n// 用法：std::tuple_size<std::tuple<int, double>>::value == 2",
+    "notes": [
+      "value 是编译期常量，可放进 constexpr 或 static_assert。",
+      "C++17 起有 tuple_size_v<T> 便捷变量模板。",
+      "对 std::array、std::pair 也做了特化。"
+    ],
+    "pits": [
+      "只能用于 tuple-like 类型，普通 struct 用会编译错误。",
+      "value 是静态成员，写 tuple_size<T>::value 而不是 tuple_size<T>().value。"
+    ],
+    "example": "using T = std::tuple<int, double>;\nconstexpr std::size_t n = std::tuple_size<T>::value;\n// n == 2",
+    "link": "https://en.cppreference.com/w/cpp/utility/tuple/tuple_size",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "optional"
+    ],
+    "scope": "optional",
+    "kind": "类",
+    "brief": "可能“没有值”的值包装；函数返回值可能缺失时替代哨兵值和指针。",
+    "sig": "template<class T> class optional;  // C++17，需 #include <optional>",
+    "notes": [
+      "要么含一个 T，要么为空，语义比 pair<T, bool> 清楚。",
+      "不分配堆内存，T 直接存在对象内部。",
+      "适合返回“查无此值”，不适合表达错误原因（用 expected 或异常）。"
+    ],
+    "pits": [
+      "空 optional 上调用 value() 抛 bad_optional_access，用 * 或 -> 则是未定义行为。",
+      "optional 有值时也占额外空间（布尔标志 + 对齐）。",
+      "optional<T&> 不合法，要引用语义需用指针或 reference_wrapper。"
+    ],
+    "example": "std::optional<int> f();\nauto v = f();\nif (v) { int x = *v; }",
+    "link": "https://en.cppreference.com/w/cpp/utility/optional",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "has_value"
+    ],
+    "scope": "optional",
+    "kind": "成员函数",
+    "brief": "判断 optional 是否含值；访问前做检查时用，C++17。",
+    "sig": "bool has_value() const noexcept;",
+    "ret": "有值返回 true，空返回 false。",
+    "notes": [
+      "等价于 static_cast<bool>(opt) 或 opt != std::nullopt。",
+      "检查通过后再用 *opt / opt.value() / opt->。",
+      "C++17 起。"
+    ],
+    "pits": [
+      "忘了检查直接 *opt 是未定义行为，不抛异常。",
+      "has_value() 后取 value() 是两次检查（value 自己还会查），热路径可先取指针或引用。"
+    ],
+    "example": "std::optional<int> o = 42;\nif (o.has_value()) {\n    int x = o.value();\n}",
+    "link": "https://en.cppreference.com/w/cpp/utility/optional/has_value",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "value_or"
+    ],
+    "scope": "optional",
+    "kind": "成员函数",
+    "brief": "有值就返回它，空就返回给定默认值；给缺省值兜底时用。",
+    "sig": "template<class U> T value_or(U&& default_value) const&;  // C++17",
+    "params": [
+      [
+        "default_value",
+        "optional 为空时返回的默认值"
+      ]
+    ],
+    "ret": "T，按值返回。",
+    "notes": [
+      "返回的是拷贝/移动，不是引用。",
+      "默认值不管有没有值都会被求值（实参先算）。",
+      "比 value() 安全，不需要 try/catch。"
+    ],
+    "pits": [
+      "别用它处理错误，掩盖“没有值”和“值为默认值”的区别。",
+      "默认值表达式有副作用时会照样执行。",
+      "T 必须可拷贝或可移动。"
+    ],
+    "example": "std::optional<int> o;\nint x = o.value_or(0);\n// x == 0",
+    "link": "https://en.cppreference.com/w/cpp/utility/optional/value_or",
+    "since": "C++17"
+  }
+]

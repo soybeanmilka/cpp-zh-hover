@@ -1,0 +1,1155 @@
+[
+  {
+    "keys": ["printf"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "按格式串把数据格式化后写到标准输出 stdout。",
+    "sig": "int printf(const char* format, ...);",
+    "params": [
+      ["format", "格式串：普通字符原样输出，%d %s %f 等占位符被实参替换，%% 输出一个百分号"],
+      ["...", "实参，个数和类型必须与占位符逐个对应"]
+    ],
+    "ret": "写出的字符数；出错返回负值。",
+    "notes": [
+      "声明在 <cstdio>，C 库不检查占位符和实参类型是否匹配",
+      "%d 要 int，%lld 要 long long，%s 要 const char*，%f 要 double"
+    ],
+    "pits": [
+      "把 std::string 直接传给 %s 是未定义行为，要写 s.c_str()。",
+      "格式串和实参类型对不上不报错，只输出乱码或垃圾值，排查很费时。"
+    ],
+    "example": "#include <cstdio>\nint main() {\n  printf(\"%d %s\\n\", 42, \"ok\");\n  return 0;\n}",
+    "link": "https://en.cppreference.com/w/c/io/fprintf",
+    "since": "C89"
+  },
+  {
+    "keys": ["scanf"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "按格式串从标准输入读数据，实参一律要传地址。",
+    "sig": "int scanf(const char* format, ...);",
+    "params": [
+      ["format", "格式串，%d %s 等；输入里的空白字符（空格、换行）会被跳过"],
+      ["...", "接收数据的地址，写 &变量；%s 直接传字符数组名"]
+    ],
+    "ret": "成功赋值的项数；在第一项转换前就结束输入返回 EOF。",
+    "notes": [
+      "声明在 <cstdio>，%s 读到空白字符就停且不带宽限",
+      "%d 读 int，%lf 读 double，%f 读的是 float 不是 double"
+    ],
+    "pits": [
+      "漏写 & 会把变量的值当地址用，运行期直接崩，编译器通常只给警告。",
+      "%s 不带宽限，输入超长就写穿缓冲区，写成 %31s 才安全。"
+    ],
+    "example": "#include <cstdio>\nint main() {\n  int n = 0;\n  char name[32] = {};\n  scanf(\"%d %31s\", &n, name);\n  printf(\"%d %s\\n\", n, name);\n}",
+    "link": "https://en.cppreference.com/w/c/io/fscanf",
+    "since": "C89"
+  },
+  {
+    "keys": ["snprintf"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "带长度上限的格式化输出到缓冲区，放不下就截断。",
+    "sig": "int snprintf(char* buffer, size_t bufsz, const char* format, ...);",
+    "params": [
+      ["buffer", "输出缓冲区"],
+      ["bufsz", "缓冲区字节数，包含结尾的 '\\0'"],
+      ["format", "格式串，和 printf 一样"]
+    ],
+    "ret": "缓冲区足够大时本应写出的字符数（不含 '\\0'）；出错返回负值。",
+    "notes": [
+      "C99 起才有，C++ 编译器在 C++11 之后基本都提供",
+      "bufsz 大于 0 时一定写结尾 '\\0'，所以最多存 bufsz-1 个字符"
+    ],
+    "pits": [
+      "返回值大于等于 bufsz 说明被截断，别把它当实际写入长度。",
+      "拿同一个缓冲区既当目标又当实参来拼接自身是未定义行为。"
+    ],
+    "example": "char buf[16];\nint n = snprintf(buf, sizeof buf, \"%d-%s\", 7, \"abc\");\n// buf == \"7-abc\"，n == 5",
+    "link": "https://en.cppreference.com/w/c/io/fprintf",
+    "since": "C99"
+  },
+  {
+    "keys": ["sprintf"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "格式化输出到缓冲区，没有长度上限，容易写越界。",
+    "sig": "int sprintf(char* buffer, const char* format, ...);",
+    "ret": "写入的字符数（不含 '\\0'）；出错返回负值。",
+    "notes": [
+      "没有长度参数，缓冲区够不够完全由调用者保证",
+      "新代码改用 snprintf，MSVC 会把 sprintf 判为不安全并报 C4996"
+    ],
+    "pits": [
+      "拼出的串超过缓冲区就写越界，栈上缓冲区会把返回地址覆盖掉。",
+      "源串本身就在目标缓冲区里时是未定义行为。"
+    ],
+    "example": "char buf[64];\nsprintf(buf, \"%d %.2f\", 3, 1.5);\n// buf == \"3 1.50\"",
+    "link": "https://en.cppreference.com/w/c/io/fprintf",
+    "since": "C89"
+  },
+  {
+    "keys": ["malloc"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "在堆上分配指定字节数的原始内存，用完必须 free。",
+    "sig": "void* malloc(size_t size);",
+    "params": [
+      ["size", "要分配的字节数，用 sizeof 算，别手写数字"]
+    ],
+    "ret": "成功返回对齐好的内存首地址；失败返回 NULL。",
+    "notes": [
+      "返回 void*，C++ 里必须显式转换成目标类型",
+      "内存内容未初始化，读到的是不确定值"
+    ],
+    "pits": [
+      "sizeof(指针) 不是数组总大小；数组当函数参数时已经退化成指针。",
+      "malloc 必须配 free，和 new/delete 混用是未定义行为。"
+    ],
+    "example": "int* p = (int*)malloc(10 * sizeof(int));\nif (!p) return 1;\nfree(p);\np = nullptr;",
+    "link": "https://en.cppreference.com/w/c/memory/malloc",
+    "since": "C89"
+  },
+  {
+    "keys": ["free"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "释放 malloc/calloc/realloc 拿到的内存，只能释放一次。",
+    "sig": "void free(void* ptr);",
+    "params": [
+      ["ptr", "malloc 系列返回的地址；传 NULL 时什么都不做"]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "释放后指针值不变，继续用就是悬垂指针",
+      "malloc 配 free、new 配 delete，两套分配器不能交叉"
+    ],
+    "pits": [
+      "同一块内存 free 两次会破坏堆结构，崩溃点常常不在 free 这一行。",
+      "free 之后还读写那块内存是未定义行为，可能读到被复用的数据。"
+    ],
+    "example": "char* p = (char*)malloc(32);\nif (p) {\n  strcpy(p, \"hi\");\n  free(p);\n  p = nullptr;\n}",
+    "link": "https://en.cppreference.com/w/c/memory/free",
+    "since": "C89"
+  },
+  {
+    "keys": ["calloc"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "分配内存并把每个字节清零，适合要初始化的数组。",
+    "sig": "void* calloc(size_t count, size_t size);",
+    "params": [
+      ["count", "元素个数"],
+      ["size", "单个元素的字节数"]
+    ],
+    "ret": "成功返回全零内存首地址；失败返回 NULL。",
+    "notes": [
+      "calloc(n, sizeof(T)) 等价于 malloc 之后把每个字节清零",
+      "清零是所有位为 0，浮点 0.0 和空指针也满足这个表示"
+    ],
+    "pits": [
+      "两个参数写反不报错，分配大小可能不同或直接失败。",
+      "count*size 溢出时标准要求返回 NULL，自己乘完再调 malloc 没这层保护。"
+    ],
+    "example": "int* a = (int*)calloc(10, sizeof(int));\n// a[0] 到 a[9] 全是 0\nfree(a);",
+    "link": "https://en.cppreference.com/w/c/memory/calloc",
+    "since": "C89"
+  },
+  {
+    "keys": ["realloc"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "调整 malloc 出来的内存块大小，可能搬到新地址。",
+    "sig": "void* realloc(void* ptr, size_t new_size);",
+    "params": [
+      ["ptr", "原内存指针；传 NULL 等价于 malloc"],
+      ["new_size", "新字节数；传 0 的行为由实现决定"]
+    ],
+    "ret": "成功返回新地址（可能与原地址不同）；失败返回 NULL，原内存块不动。",
+    "notes": [
+      "成功时旧指针立即失效，不能再读也不能再 free",
+      "失败时原块还在，要保留原指针自己 free"
+    ],
+    "pits": [
+      "p = realloc(p, n) 一旦失败原地址就丢了，内存泄漏；先存临时变量。",
+      "缩容后多出来的数据被丢弃，不要指望还能读回来。"
+    ],
+    "example": "int* p = (int*)malloc(4 * sizeof(int));\nint* q = (int*)realloc(p, 8 * sizeof(int));\nif (!q) { free(p); return 1; }\nfree(q);",
+    "link": "https://en.cppreference.com/w/c/memory/realloc",
+    "since": "C89"
+  },
+  {
+    "keys": ["memcpy"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "按字节拷贝一块内存，源和目标不允许重叠。",
+    "sig": "void* memcpy(void* dest, const void* src, size_t count);",
+    "params": [
+      ["dest", "目标地址"],
+      ["src", "源地址，只读"],
+      ["count", "字节数，不是元素个数，一般写 sizeof"]
+    ],
+    "ret": "返回 dest。",
+    "notes": [
+      "纯字节拷贝，不认 '\\0'、不认类型，结构体也能整块拷",
+      "源和目标重叠是未定义行为，重叠时用 memmove"
+    ],
+    "pits": [
+      "count 传成元素个数只拷了一部分，剩余元素是原始垃圾值。",
+      "对 std::string、std::vector 逐字节拷贝会复制内部指针，析构时双重释放。"
+    ],
+    "example": "int a[4] = {1, 2, 3, 4};\nint b[4];\nmemcpy(b, a, sizeof a);\n// b 与 a 内容相同",
+    "link": "https://en.cppreference.com/w/c/string/byte/memcpy",
+    "since": "C89"
+  },
+  {
+    "keys": ["memmove"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "按字节拷贝内存，允许源和目标区域重叠。",
+    "sig": "void* memmove(void* dest, const void* src, size_t count);",
+    "params": [
+      ["dest", "目标地址"],
+      ["src", "源地址，只读"],
+      ["count", "字节数"]
+    ],
+    "ret": "返回 dest。",
+    "notes": [
+      "判断了重叠方向，必要时从后往前拷，比 memcpy 略慢",
+      "不确定是否重叠就一律用 memmove"
+    ],
+    "pits": [
+      "数组元素整体左移或右移时用 memcpy，会先覆盖掉还没读的源数据。",
+      "count 仍按字节算，写成元素个数会拷漏。"
+    ],
+    "example": "char buf[] = \"abcdef\";\nmemmove(buf, buf + 2, 4);\n// buf 变成 \"cdefef\"",
+    "link": "https://en.cppreference.com/w/c/string/byte/memmove",
+    "since": "C89"
+  },
+  {
+    "keys": ["memset"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "把一段内存的每个字节填成同一个值，常用来清零。",
+    "sig": "void* memset(void* dest, int ch, size_t count);",
+    "params": [
+      ["dest", "要填充的内存首地址"],
+      ["ch", "填充值，只取低 8 位按字节填"],
+      ["count", "字节数"]
+    ],
+    "ret": "返回 dest。",
+    "notes": [
+      "按字节填，所以只有 0 和 -1 能可靠地表示全 0 / 全 1 位模式",
+      "清零写 memset(p, 0, n) 即可，用 '\\0' 效果一样"
+    ],
+    "pits": [
+      "memset(pi, 1, sizeof(int)) 得到的不是 1，而是 0x01010101。",
+      "对含 std::string 成员的类 memset 会破坏内部指针，析构就崩。"
+    ],
+    "example": "int a[4];\nmemset(a, 0, sizeof a);\nchar s[8];\nmemset(s, 0, sizeof s);",
+    "link": "https://en.cppreference.com/w/c/string/byte/memset",
+    "since": "C89"
+  },
+  {
+    "keys": ["strlen"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "数出字符串到 '\\0' 前的字符数，不含结尾的 '\\0'。",
+    "sig": "size_t strlen(const char* str);",
+    "params": [
+      ["str", "以 '\\0' 结尾的 C 字符串"]
+    ],
+    "ret": "字符数，不含结尾的 '\\0'。",
+    "notes": [
+      "O(n) 遍历，别在循环条件里反复调用",
+      "std::string 的 size() 是 O(1)，不要用 strlen(s.c_str()) 求长度"
+    ],
+    "pits": [
+      "字符串没有 '\\0' 结尾就会一直往后读，越界直到撞上随机的 0。",
+      "返回字节数不是字符数，UTF-8 下一个汉字占 3 个字节。"
+    ],
+    "example": "const char* s = \"hello\";\nprintf(\"%zu\\n\", strlen(s));  // 5",
+    "link": "https://en.cppreference.com/w/c/string/byte/strlen",
+    "since": "C89"
+  },
+  {
+    "keys": ["strcmp"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "按字符编码比较两个 C 字符串，返回负值、0 或正值。",
+    "sig": "int strcmp(const char* lhs, const char* rhs);",
+    "params": [
+      ["lhs", "左字符串"],
+      ["rhs", "右字符串"]
+    ],
+    "ret": "lhs 小于 rhs 返回负值，相等返回 0，大于返回正值。",
+    "notes": [
+      "逐个字符比，遇到第一个不同字符或任一方结尾就返回",
+      "0 才表示相等，别把返回值直接当布尔量的 true 用"
+    ],
+    "pits": [
+      "比较 std::string 要用 a == b，传 c_str() 给 strcmp 也能比但没必要。",
+      "写排序比较器时直接 return strcmp(a, b) 当 bool，非零都算 true，顺序会乱。"
+    ],
+    "example": "if (strcmp(\"abc\", \"abd\") < 0) {\n  printf(\"abc 更小\\n\");\n}",
+    "link": "https://en.cppreference.com/w/c/string/byte/strcmp",
+    "since": "C89"
+  },
+  {
+    "keys": ["strncmp"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "最多比较两个字符串的前 count 个字符。",
+    "sig": "int strncmp(const char* lhs, const char* rhs, size_t count);",
+    "params": [
+      ["count", "最多比较的字符数"]
+    ],
+    "ret": "返回负值、0 或正值；遇到 '\\0' 提前结束。",
+    "notes": [
+      "比较定长前缀很安全，不会读到 count 之外",
+      "返回值只保证正负方向，不保证具体数值"
+    ],
+    "pits": [
+      "前缀相同且没比到 count 就返回 0，不代表两个串完全相同。",
+      "count 写成 strlen(a)+1 时已经退化成整串比较。"
+    ],
+    "example": "const char* line = \"GET /index.html\";\nif (strncmp(line, \"GET\", 3) == 0) {\n  printf(\"是 GET 请求\\n\");\n}",
+    "link": "https://en.cppreference.com/w/c/string/byte/strncmp",
+    "since": "C89"
+  },
+  {
+    "keys": ["strcpy"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "把源字符串连结尾 '\\0' 一起拷到目标缓冲区，不检查长度。",
+    "sig": "char* strcpy(char* dest, const char* src);",
+    "params": [
+      ["dest", "目标缓冲区"],
+      ["src", "源 C 字符串"]
+    ],
+    "ret": "返回 dest。",
+    "notes": [
+      "目标要容得下 strlen(src)+1 个字节",
+      "目标和源重叠是未定义行为"
+    ],
+    "pits": [
+      "目标缓冲区小于 strlen(src)+1 就写越界，栈上数组会被踩。",
+      "strcpy 不看剩余空间，拼接用户输入前先算长度或用 snprintf。"
+    ],
+    "example": "char dst[16];\nstrcpy(dst, \"hello\");\n// dst == \"hello\"",
+    "link": "https://en.cppreference.com/w/c/string/byte/strcpy",
+    "since": "C89"
+  },
+  {
+    "keys": ["strncpy"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "最多拷贝 count 个字符，但可能不写结尾 '\\0'。",
+    "sig": "char* strncpy(char* dest, const char* src, size_t count);",
+    "params": [
+      ["dest", "目标缓冲区"],
+      ["src", "源 C 字符串"],
+      ["count", "最多拷贝的字符数"]
+    ],
+    "ret": "返回 dest。",
+    "notes": [
+      "src 比 count 短时后面补 '\\0'，正好等长或更长时不补",
+      "结果不保证以 '\\0' 结尾，这是它的主要设计缺陷"
+    ],
+    "pits": [
+      "count 取 strlen(src) 时结尾没有 '\\0'，后面 printf 会越界读。",
+      "安全写法：strncpy(d, s, n-1); d[n-1] = '\\0';"
+    ],
+    "example": "char dst[8];\nstrncpy(dst, \"abcdefghij\", sizeof dst - 1);\ndst[sizeof dst - 1] = '\\0';",
+    "link": "https://en.cppreference.com/w/c/string/byte/strncpy",
+    "since": "C89"
+  },
+  {
+    "keys": ["strcat"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "把源字符串接到目标字符串末尾，目标必须已有 '\\0'。",
+    "sig": "char* strcat(char* dest, const char* src);",
+    "params": [
+      ["dest", "目标字符串，必须以 '\\0' 结尾且有剩余空间"],
+      ["src", "要追加的源字符串"]
+    ],
+    "ret": "返回 dest。",
+    "notes": [
+      "先顺着 dest 找到结尾 '\\0' 再拷，复杂度取决于 dest 长度",
+      "dest 缓冲区要容得下两边总长再加 1"
+    ],
+    "pits": [
+      "dest 没初始化为空串（没有 '\\0'）时从随机位置开始找结尾。",
+      "循环里反复 strcat 拼串是 O(n²)，改用 snprintf 或先算总长。"
+    ],
+    "example": "char buf[32] = \"ab\";\nstrcat(buf, \"cd\");\n// buf == \"abcd\"",
+    "link": "https://en.cppreference.com/w/c/string/byte/strcat",
+    "since": "C89"
+  },
+  {
+    "keys": ["atoi"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "把十进制字符串转成 int，出错返回 0，无法区分失败。",
+    "sig": "int atoi(const char* str);",
+    "params": [
+      ["str", "要解析的字符串；跳过前导空白，允许正负号"]
+    ],
+    "ret": "转换出的 int；无法解析时返回 0，溢出行为未定义。",
+    "notes": [
+      "遇到第一个非数字字符就停，后面的内容被忽略",
+      "要区分失败和合法的 0，用 strtol 并检查 endptr"
+    ],
+    "pits": [
+      "atoi(\"abc\") 与 atoi(\"0\") 都返回 0，失败信息完全丢失。",
+      "超过 INT_MAX 的值行为未定义，实际常常截断成负数。"
+    ],
+    "example": "int n = atoi(\"42\");\nint m = atoi(\"  12abc\");  // m == 12\nprintf(\"%d %d\\n\", n, m);",
+    "link": "https://en.cppreference.com/w/c/string/byte/atoi",
+    "since": "C89"
+  },
+  {
+    "keys": ["fopen"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "按模式打开文件，返回 FILE*，失败返回 NULL。",
+    "sig": "FILE* fopen(const char* filename, const char* mode);",
+    "params": [
+      ["filename", "文件路径，Windows 下反斜杠要写成两个或直接用斜杠"],
+      ["mode", "\"r\" 读，\"w\" 截断写，\"a\" 追加，\"rb\"/\"wb\" 二进制模式"]
+    ],
+    "ret": "成功返回 FILE* 指针；失败返回 NULL。",
+    "notes": [
+      "用完必须 fclose，否则缓冲区不刷、句柄泄漏",
+      "文本模式会把 \\r\\n 映射成 \\n，读写二进制文件必须带 b"
+    ],
+    "pits": [
+      "不检查 NULL 就 fread，文件不存在时直接崩。",
+      "\"w\" 一打开成功就清空原文件，拿它探测文件存在性会丢数据。"
+    ],
+    "example": "FILE* fp = fopen(\"a.txt\", \"r\");\nif (!fp) {\n  perror(\"fopen\");\n  return 1;\n}\nfclose(fp);",
+    "link": "https://en.cppreference.com/w/c/io/fopen",
+    "since": "C89"
+  },
+  {
+    "keys": ["fclose"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "关闭文件并刷新缓冲区，每个成功打开的 FILE* 都要关。",
+    "sig": "int fclose(FILE* stream);",
+    "params": [
+      ["stream", "fopen 返回的文件指针"]
+    ],
+    "ret": "成功返回 0；失败返回 EOF。",
+    "notes": [
+      "关闭前把用户态缓冲区刷到磁盘，写盘失败在这一步才暴露",
+      "关闭后 FILE* 失效，再传给别的 I/O 函数是未定义行为"
+    ],
+    "pits": [
+      "忘了 fclose，进程异常退出时缓冲区里的数据可能根本没落盘。",
+      "同一个 FILE* 关两次是未定义行为，关完把指针置 nullptr。"
+    ],
+    "example": "FILE* fp = fopen(\"out.txt\", \"w\");\nif (fp) {\n  fputs(\"hi\", fp);\n  fclose(fp);\n}",
+    "link": "https://en.cppreference.com/w/c/io/fclose",
+    "since": "C89"
+  },
+  {
+    "keys": ["fread"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "从文件按块读入内存，二进制数据用它读。",
+    "sig": "size_t fread(void* buffer, size_t size, size_t count, FILE* stream);",
+    "params": [
+      ["buffer", "读入的内存地址"],
+      ["size", "单个元素的字节数"],
+      ["count", "要读的元素个数"],
+      ["stream", "已打开的文件"]
+    ],
+    "ret": "实际读到的完整元素个数；到文件尾或出错时小于 count。",
+    "notes": [
+      "返回值是元素个数不是字节数，字节数要再乘 size",
+      "到文件尾和读出错都表现为返回值变小，用 feof 和 ferror 区分"
+    ],
+    "pits": [
+      "把返回值当字节数用，偏移算错后面全乱。",
+      "文本模式读文本文件，换行转换会让实际字节数和预期不符。"
+    ],
+    "example": "int buf[8];\nFILE* fp = fopen(\"a.bin\", \"rb\");\nif (!fp) return 1;\nsize_t n = fread(buf, sizeof(int), 8, fp);\nfclose(fp);",
+    "link": "https://en.cppreference.com/w/c/io/fread",
+    "since": "C89"
+  },
+  {
+    "keys": ["fwrite"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "把内存里的数据按块写进文件。",
+    "sig": "size_t fwrite(const void* buffer, size_t size, size_t count, FILE* stream);",
+    "params": [
+      ["buffer", "要写出的数据地址"],
+      ["size", "单个元素的字节数"],
+      ["count", "要写出的元素个数"],
+      ["stream", "已打开的文件"]
+    ],
+    "ret": "实际写出的完整元素个数；出错时小于 count。",
+    "notes": [
+      "返回值同样是元素个数，不是写出的字节数",
+      "先写进用户态缓冲区，真正落盘在 fflush 或 fclose 时"
+    ],
+    "pits": [
+      "不检查返回值，磁盘满或权限不足时数据静默丢失。",
+      "结构体里含指针或 std::string 时不能直接 fwrite，写出的是地址。"
+    ],
+    "example": "int nums[3] = {1, 2, 3};\nFILE* fp = fopen(\"n.bin\", \"wb\");\nif (fp) {\n  fwrite(nums, sizeof(int), 3, fp);\n  fclose(fp);\n}",
+    "link": "https://en.cppreference.com/w/c/io/fwrite",
+    "since": "C89"
+  },
+  {
+    "keys": ["fseek"],
+    "scope": "C 标准库",
+    "kind": "函数",
+    "brief": "移动文件读写位置，配合 ftell 可以取文件大小。",
+    "sig": "int fseek(FILE* stream, long offset, int origin);",
+    "params": [
+      ["stream", "已打开的文件"],
+      ["offset", "相对 origin 的偏移字节数，可正可负"],
+      ["origin", "SEEK_SET 开头 / SEEK_CUR 当前位置 / SEEK_END 结尾"]
+    ],
+    "ret": "成功返回 0；失败返回非 0。",
+    "notes": [
+      "文本模式下只有 SEEK_SET 加 ftell 的返回值可移植，二进制模式随便用",
+      "超过 2GB 的文件要用 _fseeki64 这类 64 位版本"
+    ],
+    "pits": [
+      "定位越界本身不报错，真正读或写时才失败，容易误判定位成功。",
+      "读到文件尾后要 fseek 才能继续，中间不 clearerr 会一直失败。"
+    ],
+    "example": "FILE* fp = fopen(\"a.bin\", \"rb\");\nif (!fp) return 1;\nfseek(fp, 0, SEEK_END);\nlong size = ftell(fp);\nfseek(fp, 0, SEEK_SET);\nfclose(fp);",
+    "link": "https://en.cppreference.com/w/c/io/fseek",
+    "since": "C89"
+  },
+  {
+    "keys": ["CreateFileMappingA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "创建文件映射对象，把文件或分页文件变成可共享的内存区。",
+    "sig": "HANDLE CreateFileMappingA(\n  HANDLE hFile,\n  LPSECURITY_ATTRIBUTES lpFileMappingAttributes,\n  DWORD flProtect,\n  DWORD dwMaximumSizeHigh,\n  DWORD dwMaximumSizeLow,\n  LPCSTR lpName\n);",
+    "params": [
+      ["hFile", "要映射的文件句柄；传 INVALID_HANDLE_VALUE 表示用系统分页文件做纯内存共享"],
+      ["flProtect", "页保护：PAGE_READONLY / PAGE_READWRITE / PAGE_EXECUTE_READWRITE"],
+      ["dwMaximumSizeHigh", "映射区大小的高 32 位，小于 4GB 时写 0"],
+      ["dwMaximumSizeLow", "低 32 位；hFile 有效且这里写 0 表示大小和文件一样"]
+    ],
+    "ret": "成功返回映射对象句柄；失败返回 NULL。",
+    "notes": [
+      "A 版 = ANSI 名称字符串，W 版 = 宽字符，两者是不同的导出函数",
+      "两个进程用同一个 lpName 就映射到同一块内存",
+      "失败原因用 GetLastError 查，句柄最后必须 CloseHandle"
+    ],
+    "pits": [
+      "失败要判 NULL；拿 INVALID_HANDLE_VALUE 去比是错的，那是 CreateFile 的约定。",
+      "hFile 传 INVALID_HANDLE_VALUE 时两个大小参数必须给出非零值，都写 0 直接失败。"
+    ],
+    "example": "HANDLE hMap = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL,\n                                  PAGE_READWRITE, 0, 4096, \"demo_map\");\nif (!hMap) { printf(\"err %lu\\n\", GetLastError()); return 1; }\nint* p = (int*)MapViewOfFile(hMap, FILE_MAP_WRITE, 0, 0, 0);\n*p = 42;\nUnmapViewOfFile(p);\nCloseHandle(hMap);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createfilemappinga",
+    "since": "Win32"
+  },
+  {
+    "keys": ["MapViewOfFile"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "把映射对象映射进当前进程地址空间，返回可读写的指针。",
+    "sig": "LPVOID MapViewOfFile(\n  HANDLE hFileMappingObject,\n  DWORD dwDesiredAccess,\n  DWORD dwFileOffsetHigh,\n  DWORD dwFileOffsetLow,\n  SIZE_T dwNumberOfBytesToMap\n);",
+    "params": [
+      ["hFileMappingObject", "CreateFileMapping 返回的映射对象句柄"],
+      ["dwDesiredAccess", "FILE_MAP_READ / FILE_MAP_WRITE / FILE_MAP_ALL_ACCESS，要和创建时的 flProtect 兼容"],
+      ["dwFileOffsetLow", "映射起点偏移的低 32 位，高 32 位在 dwFileOffsetHigh，通常都写 0"],
+      ["dwNumberOfBytesToMap", "映射多少字节；0 表示从偏移一直到末尾"]
+    ],
+    "ret": "成功返回映射视图的起始地址；失败返回 NULL。",
+    "notes": [
+      "偏移必须是系统分配粒度的整数倍，通常是 64KB",
+      "视图用 UnmapViewOfFile 释放，不能用 CloseHandle",
+      "访问权限必须和创建映射时的 flProtect 对得上"
+    ],
+    "pits": [
+      "偏移写成 1 这类非对齐值直接返回 NULL，GetLastError 是 ERROR_MAPPED_ALIGNMENT。",
+      "用 FILE_MAP_WRITE 映射只读打开的文件会失败，权限要对齐。"
+    ],
+    "example": "HANDLE hMap = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL,\n                                  PAGE_READWRITE, 0, 4096, \"demo_map\");\nchar* p = (char*)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, 0);\nif (!p) return 1;\nstrcpy(p, \"hello\");\nUnmapViewOfFile(p);\nCloseHandle(hMap);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile",
+    "since": "Win32"
+  },
+  {
+    "keys": ["UnmapViewOfFile"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "解除 MapViewOfFile 建立的内存视图，必须成对调用。",
+    "sig": "BOOL UnmapViewOfFile(LPCVOID lpBaseAddress);",
+    "params": [
+      ["lpBaseAddress", "MapViewOfFile 返回的起始地址，不能加偏移"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "解除后那块地址立即不可访问，指针当场失效",
+      "视图不解除，映射对象即使 CloseHandle 也不会真正释放"
+    ],
+    "pits": [
+      "拿它当 free 用是错的，它释放的是视图不是堆内存。",
+      "对非视图地址调用会失败，GetLastError=ERROR_INVALID_ADDRESS。"
+    ],
+    "example": "char* p = (char*)MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0);\nif (p) {\n  printf(\"%s\\n\", p);\n  UnmapViewOfFile(p);\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-unmapviewoffile",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CreateEventA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "创建或打开事件对象，用于线程间的通知和同步。",
+    "sig": "HANDLE CreateEventA(\n  LPSECURITY_ATTRIBUTES lpEventAttributes,\n  BOOL bManualReset,\n  BOOL bInitialState,\n  LPCSTR lpName\n);",
+    "params": [
+      ["lpEventAttributes", "安全属性，一般传 NULL 表示默认"],
+      ["bManualReset", "TRUE 手动重置，SetEvent 后一直有信号；FALSE 自动重置，唤醒一个等待者后自动复位"],
+      ["bInitialState", "TRUE 创建时就是有信号状态"],
+      ["lpName", "事件名字；NULL 表示匿名事件，只能本进程内用"]
+    ],
+    "ret": "成功返回事件句柄；失败返回 NULL。",
+    "notes": [
+      "A 版 = ANSI 名字，W 版 = 宽字符",
+      "同名第二次创建返回已存在的对象，GetLastError 为 ERROR_ALREADY_EXISTS",
+      "句柄用完要 CloseHandle"
+    ],
+    "pits": [
+      "bManualReset 和 bInitialState 两个 BOOL 位置写反，行为完全不同且没有报错。",
+      "命名事件用 OpenEventA 打开时名字写错就得到 NULL，容易误判成权限问题。"
+    ],
+    "example": "HANDLE ev = CreateEventA(NULL, FALSE, FALSE, NULL);\nif (!ev) return 1;\nSetEvent(ev);\nWaitForSingleObject(ev, INFINITE);\nCloseHandle(ev);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa",
+    "since": "Win32"
+  },
+  {
+    "keys": ["OpenEventA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "打开别的进程已经创建好的命名事件，拿到它的句柄。",
+    "sig": "HANDLE OpenEventA(\n  DWORD dwDesiredAccess,\n  BOOL bInheritHandle,\n  LPCSTR lpName\n);",
+    "params": [
+      ["dwDesiredAccess", "EVENT_MODIFY_STATE 才能 SetEvent/ResetEvent；EVENT_ALL_ACCESS 全权"],
+      ["bInheritHandle", "子进程是否继承这个句柄，一般 FALSE"],
+      ["lpName", "CreateEvent 时用的名字"]
+    ],
+    "ret": "成功返回事件句柄；失败返回 NULL。",
+    "notes": [
+      "只能打开已经存在的命名对象，不能创建",
+      "打开的句柄同样要 CloseHandle"
+    ],
+    "pits": [
+      "只申请 SYNCHRONIZE 权限却去调 SetEvent，会一直 ERROR_ACCESS_DENIED。",
+      "对象不存在和权限不足都返回 NULL，必须看 GetLastError 区分。"
+    ],
+    "example": "HANDLE ev = OpenEventA(EVENT_MODIFY_STATE, FALSE, \"my_evt\");\nif (!ev) { printf(\"%lu\\n\", GetLastError()); return 1; }\nSetEvent(ev);\nCloseHandle(ev);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-openeventa",
+    "since": "Win32"
+  },
+  {
+    "keys": ["SetEvent"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "把事件对象置为有信号状态，唤醒等它的线程。",
+    "sig": "BOOL SetEvent(HANDLE hEvent);",
+    "params": [
+      ["hEvent", "事件对象句柄，需要 EVENT_MODIFY_STATE 权限"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "自动重置事件被一个等待者取走后自动复位",
+      "手动重置事件会一直保持有信号，要 ResetEvent 才复位"
+    ],
+    "pits": [
+      "句柄没有 EVENT_MODIFY_STATE 权限时失败，OpenEvent 时别省权限。",
+      "对已经关闭的句柄再调用是未定义行为，句柄生命周期要理清。"
+    ],
+    "example": "HANDLE ev = CreateEventA(NULL, FALSE, FALSE, NULL);\nSetEvent(ev);\nWaitForSingleObject(ev, 1000);  // 立即返回 WAIT_OBJECT_0\nCloseHandle(ev);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-setevent",
+    "since": "Win32"
+  },
+  {
+    "keys": ["ResetEvent"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "把事件重置为无信号状态，主要配合手动重置事件。",
+    "sig": "BOOL ResetEvent(HANDLE hEvent);",
+    "params": [
+      ["hEvent", "事件对象句柄"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "自动重置事件一般不需要手动 Reset",
+      "事件只是开/关状态不是计数器，多次 Set 再 Reset 只剩关闭"
+    ],
+    "pits": [
+      "先 Reset 再 Set 的顺序写反，等待线程可能漏掉这次通知。",
+      "等待线程还没被唤醒就 Reset，信号被吞掉，线程一直等。"
+    ],
+    "example": "HANDLE ev = CreateEventA(NULL, TRUE, FALSE, NULL);\nSetEvent(ev);\nResetEvent(ev);  // 回到无信号\nCloseHandle(ev);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-resetevent",
+    "since": "Win32"
+  },
+  {
+    "keys": ["WaitForSingleObject"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "等一个内核对象变成有信号，常用在等事件、线程或进程退出。",
+    "sig": "DWORD WaitForSingleObject(\n  HANDLE hHandle,\n  DWORD dwMilliseconds\n);",
+    "params": [
+      ["hHandle", "要等待的对象句柄，必须带 SYNCHRONIZE 权限"],
+      ["dwMilliseconds", "超时毫秒数；INFINITE 表示无限等待"]
+    ],
+    "ret": "WAIT_OBJECT_0 表示有信号；WAIT_TIMEOUT 超时；WAIT_FAILED 失败，GetLastError 查原因。",
+    "notes": [
+      "等线程或进程句柄时，有信号表示它已经退出，退出码用 GetExitCodeProcess 取",
+      "同一个句柄可以被多个线程同时等待"
+    ],
+    "pits": [
+      "把返回值当 BOOL 用，WAIT_TIMEOUT 也是非零会被误当成功。",
+      "用 INFINITE 等一个永远不置位的事件，线程永久卡死。"
+    ],
+    "example": "HANDLE ev = CreateEventA(NULL, FALSE, FALSE, NULL);\nDWORD r = WaitForSingleObject(ev, 500);\nif (r == WAIT_TIMEOUT) printf(\"超时\\n\");\nCloseHandle(ev);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject",
+    "since": "Win32"
+  },
+  {
+    "keys": ["WaitForMultipleObjects"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "同时等多个内核对象，可以等任一有信号或全部有信号。",
+    "sig": "DWORD WaitForMultipleObjects(\n  DWORD nCount,\n  const HANDLE* lpHandles,\n  BOOL bWaitAll,\n  DWORD dwMilliseconds\n);",
+    "params": [
+      ["nCount", "句柄个数，最多 MAXIMUM_WAIT_OBJECTS（64）"],
+      ["lpHandles", "句柄数组"],
+      ["bWaitAll", "TRUE 要全部有信号才返回；FALSE 任一有信号就返回"],
+      ["dwMilliseconds", "超时毫秒数或 INFINITE"]
+    ],
+    "ret": "等全部时返回 WAIT_OBJECT_0；等任一返回 WAIT_OBJECT_0 加下标；超时 WAIT_TIMEOUT。",
+    "notes": [
+      "bWaitAll=FALSE 时同时有信号的对象可能不止一个，返回值只表示其中一个",
+      "句柄数组里不能出现重复的句柄"
+    ],
+    "pits": [
+      "nCount 超过 64 直接失败，GetLastError=ERROR_INVALID_PARAMETER。",
+      "bWaitAll=TRUE 去等两个互斥量，和别的线程交叉持有就会死锁。"
+    ],
+    "example": "HANDLE hs[2] = { CreateEventA(NULL, TRUE, FALSE, NULL),\n                 CreateEventA(NULL, TRUE, FALSE, NULL) };\nSetEvent(hs[0]);\nDWORD r = WaitForMultipleObjects(2, hs, FALSE, 1000);\n// r == WAIT_OBJECT_0，第一个对象有信号",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CreateProcessA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "创建新进程，可以指定命令行、继承句柄和启动信息。",
+    "sig": "BOOL CreateProcessA(\n  LPCSTR lpApplicationName,\n  LPSTR lpCommandLine,\n  LPSECURITY_ATTRIBUTES lpProcessAttributes,\n  LPSECURITY_ATTRIBUTES lpThreadAttributes,\n  BOOL bInheritHandles,\n  DWORD dwCreationFlags,\n  LPVOID lpEnvironment,\n  LPCSTR lpCurrentDirectory,\n  LPSTARTUPINFOA lpStartupInfo,\n  LPPROCESS_INFORMATION lpProcessInformation\n);",
+    "params": [
+      ["lpApplicationName", "可执行文件路径；传 NULL 就让系统从 lpCommandLine 里推出来"],
+      ["lpCommandLine", "可写的命令行缓冲区，不能传 const 字符串字面量"],
+      ["lpStartupInfo", "STARTUPINFOA 指针，cb 字段必须设成 sizeof(STARTUPINFOA)"],
+      ["lpProcessInformation", "输出参数，带回新进程和主线程的句柄与 ID"]
+    ],
+    "ret": "成功返回非零；失败返回 0，原因用 GetLastError 查。",
+    "notes": [
+      "bInheritHandles=TRUE 时子进程继承可继承的句柄，重定向标准输入输出靠它",
+      "返回的两个句柄都要 CloseHandle，不关心主线程可以立刻关 hThread",
+      "命令行缓冲区会被系统改写，必须用可写的 char 数组"
+    ],
+    "pits": [
+      "创建成功但程序没起来，多半是路径没找到；失败时 GetLastError 是 ERROR_FILE_NOT_FOUND。",
+      "STARTUPINFOA.cb 没设成 sizeof，调用失败，GetLastError=ERROR_INVALID_PARAMETER。"
+    ],
+    "example": "STARTUPINFOA si = {};\nsi.cb = sizeof si;\nPROCESS_INFORMATION pi = {};\nchar cmd[] = \"notepad.exe\";\nif (!CreateProcessA(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))\n  return 1;\nWaitForSingleObject(pi.hProcess, INFINITE);\nCloseHandle(pi.hProcess); CloseHandle(pi.hThread);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa",
+    "since": "Win32"
+  },
+  {
+    "keys": ["OpenProcess"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "按 PID 打开已有进程，拿句柄去等待、查退出码或终止它。",
+    "sig": "HANDLE OpenProcess(\n  DWORD dwDesiredAccess,\n  BOOL bInheritHandle,\n  DWORD dwProcessId\n);",
+    "params": [
+      ["dwDesiredAccess", "PROCESS_TERMINATE 终止 / PROCESS_QUERY_LIMITED_INFORMATION 查退出码 / SYNCHRONIZE 等待"],
+      ["bInheritHandle", "子进程是否继承，一般 FALSE"],
+      ["dwProcessId", "目标进程 ID"]
+    ],
+    "ret": "成功返回进程句柄；失败返回 NULL。",
+    "notes": [
+      "打开系统进程或高完整性进程常因权限不足失败，需要管理员权限",
+      "用完必须 CloseHandle"
+    ],
+    "pits": [
+      "只申请 PROCESS_QUERY_INFORMATION 去查受限进程会失败，改用 PROCESS_QUERY_LIMITED_INFORMATION。",
+      "PID 会被系统复用，OpenProcess 成功不代表还是原来那个进程。"
+    ],
+    "example": "HANDLE h = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, pid);\nif (!h) { printf(\"%lu\\n\", GetLastError()); return 1; }\nTerminateProcess(h, 0);\nWaitForSingleObject(h, 5000);\nCloseHandle(h);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess",
+    "since": "Win32"
+  },
+  {
+    "keys": ["TerminateProcess"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "强制结束指定进程，不给它任何清理和析构的机会。",
+    "sig": "BOOL TerminateProcess(\n  HANDLE hProcess,\n  UINT uExitCode\n);",
+    "params": [
+      ["hProcess", "进程句柄，必须带 PROCESS_TERMINATE 权限"],
+      ["uExitCode", "写到目标进程的退出码"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "目标进程内所有线程都被杀，atexit 和析构函数都不会跑",
+      "返回成功只表示终止请求被接受，用 WaitForSingleObject 等它真正退出"
+    ],
+    "pits": [
+      "拿它的返回值当目标进程的退出码，二者完全不是一回事。",
+      "结束自身进程会把当前线程也干掉，调试时看起来像后面的代码没执行。"
+    ],
+    "example": "HANDLE h = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, pid);\nif (h) {\n  TerminateProcess(h, 1);\n  WaitForSingleObject(h, 5000);\n  CloseHandle(h);\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetExitCodeProcess"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取进程的退出码，进程还活着时得到 STILL_ACTIVE。",
+    "sig": "BOOL GetExitCodeProcess(\n  HANDLE hProcess,\n  LPDWORD lpExitCode\n);",
+    "params": [
+      ["hProcess", "进程句柄，带 PROCESS_QUERY_LIMITED_INFORMATION 权限"],
+      ["lpExitCode", "输出参数，接收退出码"]
+    ],
+    "ret": "成功返回非零；失败返回 0，真正的退出码通过 lpExitCode 带回。",
+    "notes": [
+      "进程存活时退出码是 STILL_ACTIVE（259），不表示异常",
+      "退出码本身也可能等于 259，所以要先等进程退出再判断"
+    ],
+    "pits": [
+      "不先等待就取退出码，拿到 STILL_ACTIVE 误以为进程失败。",
+      "把 BOOL 返回值当退出码用，真实值在输出参数里。"
+    ],
+    "example": "DWORD code = 0;\nif (GetExitCodeProcess(pi.hProcess, &code) && code != STILL_ACTIVE)\n  printf(\"退出码 %lu\\n\", code);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getexitcodeprocess",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CloseHandle"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "关闭内核对象句柄，句柄计数归零后对象才真正销毁。",
+    "sig": "BOOL CloseHandle(HANDLE hObject);",
+    "params": [
+      ["hObject", "要关闭的句柄：文件、进程、线程、事件、互斥量、信号量都算"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "句柄关掉后立即失效，再传给任何 API 都是未定义行为",
+      "不关也不会阻止进程退出，但长时间运行的程序会句柄泄漏"
+    ],
+    "pits": [
+      "同一句柄关两次，可能把复用了同一数值的新句柄误关。",
+      "内存映射视图不能用它释放，要用 UnmapViewOfFile。"
+    ],
+    "example": "HANDLE ev = CreateEventA(NULL, FALSE, FALSE, NULL);\nif (ev) CloseHandle(ev);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetLastError"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取调用线程最近一次失败的错误码，Win32 排错第一步。",
+    "sig": "DWORD GetLastError();",
+    "ret": "最近一次设置的错误码；成功调用不会把它清零。",
+    "notes": [
+      "只在紧接失败之后调用，中间再调任何 API 都可能覆盖它",
+      "用 FormatMessage 可以把错误码翻译成可读文字"
+    ],
+    "pits": [
+      "API 成功后再查，读到的是更早的旧错误码，误判成这次失败。",
+      "错误码按线程记录，别的线程查不到你这线程的错误。"
+    ],
+    "example": "HANDLE h = CreateEventA(NULL, FALSE, FALSE, \"x\");\nif (!h)\n  printf(\"err=%lu\\n\", GetLastError());\nelse\n  CloseHandle(h);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-getlasterror",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetModuleFileNameA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取当前可执行文件或指定模块的完整路径。",
+    "sig": "DWORD GetModuleFileNameA(\n  HMODULE hModule,\n  LPSTR lpFilename,\n  DWORD nSize\n);",
+    "params": [
+      ["hModule", "模块句柄；传 NULL 表示当前进程的可执行文件"],
+      ["lpFilename", "输出缓冲区"],
+      ["nSize", "缓冲区能容纳的字符数"]
+    ],
+    "ret": "成功返回实际写入的字符数（不含 '\\0'）；失败返回 0。",
+    "notes": [
+      "返回值等于 nSize 说明可能被截断，这时不能当完整路径用",
+      "A 版写的是 ANSI 路径，含中文的路径可能乱码，改用 GetModuleFileNameW"
+    ],
+    "pits": [
+      "缓冲区只开 MAX_PATH 不够用，长路径下截断后路径不可用。",
+      "把返回值当 BOOL 判断成功，返回 0 才表示失败。"
+    ],
+    "example": "char path[MAX_PATH] = {};\nDWORD n = GetModuleFileNameA(NULL, path, MAX_PATH);\nif (n > 0 && n < MAX_PATH)\n  printf(\"%s\\n\", path);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamea",
+    "since": "Win32"
+  },
+  {
+    "keys": ["Sleep"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "让当前线程挂起指定毫秒数，期间不占 CPU。",
+    "sig": "void Sleep(DWORD dwMilliseconds);",
+    "params": [
+      ["dwMilliseconds", "毫秒数；0 表示让出剩余时间片；INFINITE 表示永远挂起"]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "精度受系统时钟节拍限制，通常 15ms 左右，不能当精确计时",
+      "只挂起当前线程，不是整个进程"
+    ],
+    "pits": [
+      "用 Sleep 猜时间等异步完成，机器一慢就失败；等对象要用 WaitForSingleObject。",
+      "在 UI 线程里 Sleep 会让窗口卡住不响应。"
+    ],
+    "example": "Sleep(100);  // 当前线程睡 100ms\nprintf(\"醒来\\n\");",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-sleep",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetCurrentProcessId"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取当前进程的 PID。",
+    "sig": "DWORD GetCurrentProcessId();",
+    "ret": "当前进程 ID，一定成功，没有失败情况。",
+    "notes": [
+      "PID 会被系统复用，不能当长期唯一标识",
+      "日志里带上 PID 便于区分多进程输出"
+    ],
+    "pits": [
+      "拿 PID 做权限或身份判断不安全，进程退出后这个号可能被别的进程占用。"
+    ],
+    "example": "DWORD pid = GetCurrentProcessId();\nprintf(\"pid=%lu\\n\", pid);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentprocessid",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetCurrentThreadId"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取当前线程的线程 ID。",
+    "sig": "DWORD GetCurrentThreadId();",
+    "ret": "当前线程 ID，一定成功。",
+    "notes": [
+      "CreateThread 时也会通过参数带回新线程 ID，不必再查一次",
+      "线程 ID 在系统范围内唯一，但不是线程句柄"
+    ],
+    "pits": [
+      "把线程 ID 当线程句柄用，ID 是 DWORD、句柄是 HANDLE，两者不能互换。"
+    ],
+    "example": "DWORD tid = GetCurrentThreadId();\nprintf(\"tid=%lu\\n\", tid);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadid",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CreateThread"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "在当前进程里创建新线程，从指定函数开始执行。",
+    "sig": "HANDLE CreateThread(\n  LPSECURITY_ATTRIBUTES lpThreadAttributes,\n  SIZE_T dwStackSize,\n  LPTHREAD_START_ROUTINE lpStartAddress,\n  LPVOID lpParameter,\n  DWORD dwCreationFlags,\n  LPDWORD lpThreadId\n);",
+    "params": [
+      ["lpThreadAttributes", "安全属性，一般传 NULL"],
+      ["dwStackSize", "栈大小，0 表示用默认的 1MB"],
+      ["lpStartAddress", "线程函数，签名必须是 DWORD WINAPI f(LPVOID)"],
+      ["lpParameter", "传给线程函数的 void* 指针"]
+    ],
+    "ret": "成功返回线程句柄；失败返回 NULL。",
+    "notes": [
+      "线程函数必须声明为 DWORD WINAPI，调用约定不对会把栈搞乱",
+      "句柄用完 CloseHandle；不关不影响运行，但会泄漏",
+      "新线程和主线程并发执行，共享数据要加锁"
+    ],
+    "pits": [
+      "把局部变量的地址当参数传进去，函数返回后那块栈失效，线程读到垃圾。",
+      "线程函数里 return 会结束整个线程，前面的资源别忘了释放。"
+    ],
+    "example": "DWORD WINAPI work(LPVOID) {\n  printf(\"%lu\\n\", GetCurrentThreadId());\n  return 0;\n}\nHANDLE th = CreateThread(NULL, 0, work, NULL, 0, NULL);\nWaitForSingleObject(th, INFINITE);\nCloseHandle(th);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CreateMutexA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "创建或打开互斥量，同一时刻只允许一个线程持有。",
+    "sig": "HANDLE CreateMutexA(\n  LPSECURITY_ATTRIBUTES lpMutexAttributes,\n  BOOL bInitialOwner,\n  LPCSTR lpName\n);",
+    "params": [
+      ["lpMutexAttributes", "安全属性，一般传 NULL"],
+      ["bInitialOwner", "TRUE 表示创建线程立刻持有；FALSE 表示初始无主"],
+      ["lpName", "互斥量名字；NULL 表示匿名，只能本进程内用"]
+    ],
+    "ret": "成功返回互斥量句柄；失败返回 NULL。",
+    "notes": [
+      "A 版 = ANSI 名字，W 版 = 宽字符",
+      "互斥量是内核对象，可以跨进程用，靠 lpName 约定",
+      "WaitForSingleObject 拿到，ReleaseMutex 释放，必须成对"
+    ],
+    "pits": [
+      "bInitialOwner 传 TRUE 后同一线程再 Wait 会再次拿到，释放次数要对得上。",
+      "命名互斥量第二次创建返回已存在对象，要看 GetLastError 的 ERROR_ALREADY_EXISTS。"
+    ],
+    "example": "HANDLE m = CreateMutexA(NULL, FALSE, NULL);\nWaitForSingleObject(m, INFINITE);\n// 临界区\nReleaseMutex(m);\nCloseHandle(m);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createmutexa",
+    "since": "Win32"
+  },
+  {
+    "keys": ["ReleaseMutex"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "释放当前线程持有的互斥量，让其他等待者拿到它。",
+    "sig": "BOOL ReleaseMutex(HANDLE hMutex);",
+    "params": [
+      ["hMutex", "从 CreateMutex 或 OpenMutex 拿到的句柄"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "只有持有者能释放，别的线程调会失败",
+      "互斥量记录持有次数，Wait 几次就要 Release 几次"
+    ],
+    "pits": [
+      "多个分支里有一个忘了 ReleaseMutex，等待者就永远卡住。",
+      "持有期间抛异常而没走释放逻辑会死锁，C++ 里用 RAII 把释放绑在析构上。"
+    ],
+    "example": "HANDLE m = CreateMutexA(NULL, FALSE, NULL);\nWaitForSingleObject(m, INFINITE);\nReleaseMutex(m);\nCloseHandle(m);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-releasemutex",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CreateSemaphoreA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "创建计数信号量，用计数限制同时访问的线程数。",
+    "sig": "HANDLE CreateSemaphoreA(\n  LPSECURITY_ATTRIBUTES lpSemaphoreAttributes,\n  LONG lInitialCount,\n  LONG lMaximumCount,\n  LPCSTR lpName\n);",
+    "params": [
+      ["lpSemaphoreAttributes", "安全属性，一般传 NULL"],
+      ["lInitialCount", "初始计数，0 表示一开始所有等待者都阻塞"],
+      ["lMaximumCount", "计数上限，必须大于 0 且不小于 lInitialCount"],
+      ["lpName", "信号量名字；NULL 表示匿名"]
+    ],
+    "ret": "成功返回信号量句柄；失败返回 NULL。",
+    "notes": [
+      "计数为 0 时 WaitForSingleObject 阻塞，每 Release 一次计数加一",
+      "信号量是多个名额，互斥量只有一个名额"
+    ],
+    "pits": [
+      "lInitialCount 大于 lMaximumCount 时创建直接失败。",
+      "把信号量当互斥量用，计数大于 1 时根本保证不了互斥。"
+    ],
+    "example": "HANDLE sem = CreateSemaphoreA(NULL, 3, 3, NULL);\nWaitForSingleObject(sem, INFINITE);\n// 最多 3 个线程同时进来\nReleaseSemaphore(sem, 1, NULL);\nCloseHandle(sem);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createsemaphorea",
+    "since": "Win32"
+  },
+  {
+    "keys": ["ReleaseSemaphore"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "增加信号量计数，唤醒等待的线程。",
+    "sig": "BOOL ReleaseSemaphore(\n  HANDLE hSemaphore,\n  LONG lReleaseCount,\n  LPLONG lpPreviousCount\n);",
+    "params": [
+      ["hSemaphore", "信号量句柄"],
+      ["lReleaseCount", "计数增加多少，必须大于 0"],
+      ["lpPreviousCount", "输出原来的计数，不关心就传 NULL"]
+    ],
+    "ret": "成功返回非零；失败返回 0，增加后超过上限时也会失败。",
+    "notes": [
+      "超过 lMaximumCount 时整个调用失败，计数保持不变",
+      "一次可以释放多个名额"
+    ],
+    "pits": [
+      "lReleaseCount 传 0 或负数，调用失败，GetLastError=ERROR_INVALID_PARAMETER。",
+      "Release 次数多于 Wait 次数，计数虚高，限流就失效了。"
+    ],
+    "example": "HANDLE sem = CreateSemaphoreA(NULL, 0, 10, NULL);\nLONG prev = 0;\nReleaseSemaphore(sem, 1, &prev);\nWaitForSingleObject(sem, INFINITE);\nCloseHandle(sem);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-releasesemaphore",
+    "since": "Win32"
+  },
+  {
+    "keys": ["STARTUPINFOA"],
+    "scope": "Windows API",
+    "kind": "类型",
+    "brief": "CreateProcess 的启动参数结构体，控制窗口显示和标准 IO 重定向。",
+    "sig": "typedef struct _STARTUPINFOA {\n  DWORD cb;\n  LPSTR lpDesktop;\n  DWORD dwFlags;\n  WORD wShowWindow;\n  HANDLE hStdInput;\n  HANDLE hStdOutput;\n  HANDLE hStdError;\n} STARTUPINFOA, *LPSTARTUPINFOA;",
+    "params": [
+      ["cb", "结构体大小，必须设成 sizeof(STARTUPINFOA)，否则 CreateProcess 失败"],
+      ["dwFlags", "STARTF_USESTDHANDLES 表示三个标准句柄字段生效，STARTF_USESHOWWINDOW 表示窗口显示方式生效"],
+      ["wShowWindow", "窗口显示方式，例如 SW_HIDE 隐藏"],
+      ["hStdInput", "标准输入句柄，重定向子进程 IO 时设置"]
+    ],
+    "notes": [
+      "A 版用 char 字段，W 版用 wchar_t",
+      "sig 里只列了常用字段，完整定义在 winbase.h"
+    ],
+    "pits": [
+      "忘了写 si.cb = sizeof si，CreateProcess 直接失败，GetLastError=ERROR_INVALID_PARAMETER。",
+      "栈上结构体不零初始化，残留的 dwFlags 位会打开意料之外的行为。"
+    ],
+    "example": "STARTUPINFOA si = {};\nsi.cb = sizeof si;\nsi.dwFlags = STARTF_USESHOWWINDOW;\nsi.wShowWindow = SW_HIDE;",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-startupinfoa",
+    "since": "Win32"
+  },
+  {
+    "keys": ["PROCESS_INFORMATION"],
+    "scope": "Windows API",
+    "kind": "类型",
+    "brief": "接收 CreateProcess 的输出：新进程和主线程的句柄与 ID。",
+    "sig": "typedef struct _PROCESS_INFORMATION {\n  HANDLE hProcess;\n  HANDLE hThread;\n  DWORD dwProcessId;\n  DWORD dwThreadId;\n} PROCESS_INFORMATION, *PPROCESS_INFORMATION, *LPPROCESS_INFORMATION;",
+    "params": [
+      ["hProcess", "新进程句柄，等待结束、查退出码、终止都用它"],
+      ["hThread", "新进程主线程句柄，不关心可以立刻 CloseHandle"],
+      ["dwProcessId", "新进程 ID"],
+      ["dwThreadId", "新进程主线程 ID"]
+    ],
+    "notes": [
+      "结构体必须先零初始化再传给 CreateProcess",
+      "两个 HANDLE 都是内核对象句柄，都占资源，都要 CloseHandle"
+    ],
+    "pits": [
+      "只关 hProcess 忘了关 hThread，句柄泄漏。",
+      "dwProcessId 只是 ID 不是句柄，拿去调需要 HANDLE 的 API 会失败。"
+    ],
+    "example": "PROCESS_INFORMATION pi = {};\nCreateProcessA(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);\nprintf(\"pid=%lu\\n\", pi.dwProcessId);\nCloseHandle(pi.hProcess);\nCloseHandle(pi.hThread);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-process_information",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetTickCount64"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取系统启动至今的毫秒数，64 位不会回绕，适合算耗时。",
+    "sig": "ULONGLONG GetTickCount64();",
+    "ret": "系统启动至今经过的毫秒数，不会失败也不会回绕。",
+    "notes": [
+      "旧的 GetTickCount 返回 32 位，约 49.7 天回绕一次",
+      "精度受系统计时器分辨率限制，不适合亚毫秒级测量"
+    ],
+    "pits": [
+      "拿它做精确性能测试，分辨率不够，几毫秒的差异量不出来。",
+      "把它当绝对时间用，它只是开机后经过的毫秒数，关机就归零。"
+    ],
+    "example": "ULONGLONG t0 = GetTickCount64();\nWork();\nprintf(\"耗时 %llu ms\\n\", GetTickCount64() - t0);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-gettickcount64",
+    "since": "Win32"
+  }
+]

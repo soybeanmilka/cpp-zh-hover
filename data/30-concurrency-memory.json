@@ -1,0 +1,2084 @@
+[
+  {
+    "keys": [
+      "thread"
+    ],
+    "scope": "thread",
+    "kind": "类",
+    "brief": "一个可执行线程：构造完成立刻开始运行，析构前必须 join 或 detach。",
+    "sig": "thread() noexcept;\ntemplate<class F, class... Args>\nexplicit thread(F&& f, Args&&... args);",
+    "params": [
+      [
+        "f",
+        "线程入口函数或任意可调用对象"
+      ],
+      [
+        "args",
+        "传给 f 的参数，默认按值拷贝或移动"
+      ]
+    ],
+    "ret": "无。构造函数返回时新线程已经开始执行。",
+    "notes": [
+      "C++11 起，需要 #include <thread>",
+      "线程对象不可拷贝，只能 std::move 转移",
+      "创建失败（资源不足）抛 std::system_error"
+    ],
+    "pits": [
+      "析构时 joinable() 仍为真，程序直接 std::terminate，没有任何提示。",
+      "参数默认按值拷贝：想传引用必须用 std::ref，否则改的是副本。"
+    ],
+    "example": "void work() { }\nstd::thread t(work);   // 立即开始运行\nt.join();              // 等它结束",
+    "link": "https://en.cppreference.com/w/cpp/thread/thread",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "join"
+    ],
+    "scope": "thread",
+    "kind": "成员函数",
+    "brief": "阻塞调用线程，直到目标线程执行完毕，之后 joinable() 变 false。",
+    "sig": "void join();",
+    "ret": "无返回值。",
+    "notes": [
+      "只能对 joinable() 为真的线程调用一次",
+      "join 返回后线程资源被回收",
+      "谁调用谁阻塞：通常主线程 join 工作线程"
+    ],
+    "pits": [
+      "对同一线程 join 两次抛 std::system_error。",
+      "忘了 join 又让 thread 析构，结果是 std::terminate。",
+      "多个线程要依次 join，等待是串行的，别指望它同时等。"
+    ],
+    "example": "std::thread t([]{ do_work(); });\nt.join();   // 主线程在这里阻塞到 worker 结束",
+    "link": "https://en.cppreference.com/w/cpp/thread/thread/join",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "detach"
+    ],
+    "scope": "thread",
+    "kind": "成员函数",
+    "brief": "让线程在后台独立运行，线程对象与它脱钩，之后不能再 join。",
+    "sig": "void detach();",
+    "ret": "无返回值。",
+    "notes": [
+      "detach 后 joinable() 为 false",
+      "线程结束时资源由系统回收",
+      "脱离的线程仍会访问共享数据，生命周期自己负责"
+    ],
+    "pits": [
+      "detach 的线程若引用了将销毁的局部变量，函数返回后就是悬空访问。",
+      "进程退出时脱离的线程可能被强行终止，没有清理机会。",
+      "detach 后无法等待完成，也拿不到异常和返回值。"
+    ],
+    "example": "std::thread t([]{ background_poll(); });\nt.detach();   // 后台跑，主线程继续",
+    "link": "https://en.cppreference.com/w/cpp/thread/thread/detach",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "joinable"
+    ],
+    "scope": "thread",
+    "kind": "成员函数",
+    "brief": "线程对象是否关联着一个尚未 join / detach 的线程。",
+    "sig": "bool joinable() const noexcept;",
+    "ret": "关联着线程且还没 join/detach 时返回 true。",
+    "notes": [
+      "默认构造的 thread 不可 joinable",
+      "join 或 detach 之后变成 false",
+      "析构前检查它，是避免 terminate 的最后一道关"
+    ],
+    "pits": [
+      "joinable() 为 true 不代表线程还在跑，可能已结束但没回收。",
+      "以为 false 就能安全重复 join，实际重复 join 会抛异常。"
+    ],
+    "example": "std::thread t(work);\nif (t.joinable()) t.join();   // 常见的收尾写法",
+    "link": "https://en.cppreference.com/w/cpp/thread/thread/joinable",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "hardware_concurrency"
+    ],
+    "scope": "thread",
+    "kind": "函数",
+    "brief": "返回硬件支持的并发线程数，通常等于逻辑核数，可当线程池大小的参考。",
+    "sig": "static unsigned int hardware_concurrency() noexcept;",
+    "ret": "建议的并发线程数；无法确定时返回 0。",
+    "notes": [
+      "只是提示值，不保证准确",
+      "没有「最多只能开这么多」的强制含义",
+      "常见用法：std::max(1u, std::thread::hardware_concurrency())"
+    ],
+    "pits": [
+      "可能返回 0，直接拿它当线程数会创建出空的工作线程集合。",
+      "把返回值当性能上限去翻倍开线程，通常收益是负的。"
+    ],
+    "example": "unsigned n = std::thread::hardware_concurrency();\nstd::vector<std::thread> pool;\nfor (unsigned i = 0; i < std::max(1u, n); ++i) pool.emplace_back(work);\nfor (auto& t : pool) t.join();",
+    "link": "https://en.cppreference.com/w/cpp/thread/thread/hardware_concurrency",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "this_thread"
+    ],
+    "scope": "thread",
+    "kind": "命名空间",
+    "brief": "当前线程的操作入口：取 id、睡眠、让出 CPU。",
+    "sig": "namespace this_thread {\n  thread::id get_id() noexcept;\n  template<class Rep, class Period> void sleep_for(const chrono::duration<Rep, Period>& d);\n  void yield() noexcept;\n}",
+    "notes": [
+      "永远作用于调用它的那个线程，不需要线程对象",
+      "里面的函数都不抛异常",
+      "C++11 起"
+    ],
+    "pits": [
+      "它是 std 下的命名空间，写 this_thread 时别漏掉 std::。",
+      "它没有「暂停别的线程」的能力，只能操作自己。"
+    ],
+    "example": "std::cout << std::this_thread::get_id() << '\\n';\nstd::this_thread::sleep_for(std::chrono::milliseconds(10));",
+    "link": "https://en.cppreference.com/w/cpp/thread/this_thread",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "get_id"
+    ],
+    "scope": "thread",
+    "kind": "成员函数",
+    "brief": "返回 thread 对象所关联线程的唯一标识。",
+    "sig": "std::thread::id get_id() const noexcept;",
+    "ret": "线程 id；对象没关联线程时返回默认构造的空 id。",
+    "notes": [
+      "id 可比较、可哈希，能当 map 的键",
+      "只保证在进程内唯一",
+      "线程结束并 join 后 id 仍可读"
+    ],
+    "pits": [
+      "默认构造的 thread 调 get_id 得到空 id，不是 0。",
+      "id 会被复用：线程结束后新线程可能拿到相同数值。"
+    ],
+    "example": "std::thread t(work);\nstd::thread::id id = t.get_id();\nt.join();",
+    "link": "https://en.cppreference.com/w/cpp/thread/thread/get_id",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "get_id"
+    ],
+    "scope": "this_thread",
+    "kind": "函数",
+    "brief": "取当前正在执行这条语句的线程 id。",
+    "sig": "std::thread::id this_thread::get_id() noexcept;",
+    "ret": "当前线程的 id。",
+    "notes": [
+      "等价于在别的线程里对那个 thread 对象调 get_id",
+      "常用于日志、调试、确认代码跑在哪个线程",
+      "C++11 起"
+    ],
+    "pits": [
+      "单线程程序里它也有值，不能用来判断「是否多线程」。",
+      "拿它做线程局部存储的键，不如直接写 thread_local。"
+    ],
+    "example": "std::thread t([]{ std::cout << std::this_thread::get_id() << '\\n'; });\nt.join();",
+    "link": "https://en.cppreference.com/w/cpp/thread/this_thread/get_id",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "sleep_for"
+    ],
+    "scope": "this_thread",
+    "kind": "函数",
+    "brief": "让当前线程至少睡指定时长，睡眠期间不占 CPU。",
+    "sig": "template<class Rep, class Period>\nvoid sleep_for(const std::chrono::duration<Rep, Period>& sleep_duration);",
+    "params": [
+      [
+        "sleep_duration",
+        "要睡多久，如 std::chrono::milliseconds(100)"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "实际时间可能比请求的长（调度、时钟粒度）",
+      "睡眠期间不消耗 CPU，不是忙等",
+      "C++11 起"
+    ],
+    "pits": [
+      "直接传整数编译不过，必须给 duration 对象，如 100ms 或 milliseconds(100)。",
+      "它不是精确定时器，实时性要求高要用条件变量或定时器。",
+      "Windows 默认时钟粒度约 15ms，短睡眠常常睡过头。"
+    ],
+    "example": "std::this_thread::sleep_for(std::chrono::milliseconds(100));  // 睡 100ms\nstd::this_thread::sleep_for(2s);   // C++14 起可用字面量",
+    "link": "https://en.cppreference.com/w/cpp/thread/this_thread/sleep_for",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "sleep_until"
+    ],
+    "scope": "this_thread",
+    "kind": "函数",
+    "brief": "让当前线程睡到某个绝对时间点，而不是睡一段时间。",
+    "sig": "template<class Clock, class Duration>\nvoid sleep_until(const std::chrono::time_point<Clock, Duration>& sleep_time);",
+    "params": [
+      [
+        "sleep_time",
+        "醒来的时间点，如 steady_clock::now() + 1s"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "适合「每隔固定时刻执行一次」的循环",
+      "时钟要和取 now() 用的时钟一致",
+      "C++11 起"
+    ],
+    "pits": [
+      "时间点已经过去时立即返回，不报错。",
+      "用 system_clock 时间点会受系统改时间影响，计时间隔优先 steady_clock。"
+    ],
+    "example": "using namespace std::chrono;\nauto next = steady_clock::now() + seconds(1);\nstd::this_thread::sleep_until(next);",
+    "link": "https://en.cppreference.com/w/cpp/thread/this_thread/sleep_until",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "yield"
+    ],
+    "scope": "this_thread",
+    "kind": "函数",
+    "brief": "提示调度器让出当前时间片，让别的线程有机会先跑。",
+    "sig": "void this_thread::yield() noexcept;",
+    "ret": "无返回值。",
+    "notes": [
+      "只是建议，调度器可以不理会",
+      "常用于自旋等待循环里降低 CPU 占用",
+      "不保证任何线程真的被切换"
+    ],
+    "pits": [
+      "yield 不能替代锁或同步，它不提供任何内存序保证。",
+      "自旋里频繁 yield 通常不如直接阻塞在条件变量上。"
+    ],
+    "example": "while (!ready.load(std::memory_order_acquire)) {\n  std::this_thread::yield();\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/this_thread/yield",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "mutex"
+    ],
+    "scope": "mutex",
+    "kind": "类",
+    "brief": "互斥量：同一时刻只允许一个线程进入临界区。",
+    "sig": "class mutex {\npublic:\n  void lock();\n  bool try_lock();\n  void unlock();\n};",
+    "notes": [
+      "不可递归：同一线程重复 lock 会死锁",
+      "通常不直接调用，交给 lock_guard / unique_lock 管理",
+      "等不到锁就无限期阻塞"
+    ],
+    "pits": [
+      "忘记 unlock（或中途 return / 抛异常）会让所有线程永久卡住。",
+      "同一线程对 std::mutex 重入上锁是未定义行为，多半直接死锁。"
+    ],
+    "example": "std::mutex m;\nvoid add() {\n  std::lock_guard<std::mutex> lk(m);\n  ++shared_counter;\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/mutex",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "lock"
+    ],
+    "scope": "mutex",
+    "kind": "成员函数",
+    "brief": "上锁：锁已被别的线程持有时，当前线程阻塞等待。",
+    "sig": "void lock();",
+    "ret": "无返回值。",
+    "notes": [
+      "拿到锁之前一直阻塞",
+      "持锁期间代码要尽量短，别在里面做 IO",
+      "手动 lock 必须配 unlock，推荐用 RAII 包装"
+    ],
+    "pits": [
+      "lock 之后抛异常没走到 unlock 就死锁，用 lock_guard 可避免。",
+      "对已经持有的 std::mutex 再 lock 是未定义行为。"
+    ],
+    "example": "m.lock();\ntry { update(); m.unlock(); }\ncatch (...) { m.unlock(); throw; }   // 手写容易漏解锁",
+    "link": "https://en.cppreference.com/w/cpp/thread/mutex/lock",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "unlock"
+    ],
+    "scope": "mutex",
+    "kind": "成员函数",
+    "brief": "解锁：释放 mutex，让其他等待的线程可以拿到锁。",
+    "sig": "void unlock();",
+    "ret": "无返回值。",
+    "notes": [
+      "只能由持有锁的线程调用",
+      "lock_guard / unique_lock 析构时会自动调用",
+      "C++11 起"
+    ],
+    "pits": [
+      "没持有锁就 unlock 是未定义行为。",
+      "多线程共用一把锁时，任何提前 return 都必须先解锁。"
+    ],
+    "example": "m.lock();\n++counter;\nm.unlock();",
+    "link": "https://en.cppreference.com/w/cpp/thread/mutex/unlock",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "try_lock"
+    ],
+    "scope": "mutex",
+    "kind": "成员函数",
+    "brief": "尝试上锁：拿到返回 true，被别人占着立刻返回 false，不阻塞。",
+    "sig": "bool try_lock();",
+    "ret": "成功拿到锁返回 true，否则返回 false。",
+    "notes": [
+      "非阻塞，适合「拿不到就先干别的」",
+      "拿到锁后仍然必须 unlock",
+      "循环 try_lock 是自旋，会烧 CPU"
+    ],
+    "pits": [
+      "try_lock 成功却忘记 unlock，后面的线程全被锁死。",
+      "把 try_lock 失败当成「同步失败」去重试，会退化成忙等。"
+    ],
+    "example": "if (m.try_lock()) {\n  do_shared_work();\n  m.unlock();\n} else {\n  do_other_work();\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/mutex/try_lock",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "lock"
+    ],
+    "scope": "全局",
+    "kind": "函数",
+    "brief": "一次锁住多个互斥量，内部用死锁避免算法，不会互相卡死。",
+    "sig": "template<class Lockable1, class Lockable2, class... Lockables>\nvoid lock(Lockable1& l1, Lockable2& l2, Lockables&... ls);",
+    "ret": "无。中途上锁失败时会把已经拿到的锁全部释放。",
+    "notes": [
+      "配合 defer_lock：先构造 unique_lock 不上锁，再交给 std::lock",
+      "C++11 起；C++17 之后多锁直接写 scoped_lock 更省事"
+    ],
+    "pits": [
+      "std::lock 之后不能用 lock_guard（会再锁一次），要用 unique_lock 加 adopt_lock。",
+      "只按固定顺序去锁仍可能和别人顺序相反而死锁，这正是 std::lock 要解决的。"
+    ],
+    "example": "std::unique_lock<std::mutex> a(m1, std::defer_lock);\nstd::unique_lock<std::mutex> b(m2, std::defer_lock);\nstd::lock(a, b);   // 两把锁一起拿，顺序由实现处理",
+    "link": "https://en.cppreference.com/w/cpp/thread/lock",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "lock_guard"
+    ],
+    "scope": "lock_guard",
+    "kind": "类",
+    "brief": "最轻的锁守卫：构造时上锁、析构时解锁，没有别的动作。",
+    "sig": "template<class Mutex>\nclass lock_guard {\npublic:\n  explicit lock_guard(Mutex& m);\n  lock_guard(Mutex& m, std::adopt_lock_t);\n};",
+    "notes": [
+      "不能手动 unlock，也不能拷贝或移动",
+      "开销最小，能覆盖大部分场景",
+      "C++17 起可用 CTAD 省掉模板参数"
+    ],
+    "pits": [
+      "作用域开得太大导致持锁过久，计算别放进它的作用域里。",
+      "想延迟上锁或中途解锁它做不到，要换成 unique_lock。"
+    ],
+    "example": "std::mutex m;\n{\n  std::lock_guard<std::mutex> lk(m);\n  ++counter;   // 临界区\n}              // 出作用域自动解锁",
+    "link": "https://en.cppreference.com/w/cpp/thread/lock_guard",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "unique_lock"
+    ],
+    "scope": "unique_lock",
+    "kind": "类",
+    "brief": "可延迟上锁、手动解锁、能转移、能给条件变量用的锁守卫。",
+    "sig": "template<class Mutex>\nclass unique_lock {\npublic:\n  unique_lock() noexcept;\n  explicit unique_lock(Mutex& m);\n  unique_lock(Mutex& m, std::defer_lock_t) noexcept;\n  void lock();\n  void unlock();\n  bool owns_lock() const noexcept;\n};",
+    "notes": [
+      "比 lock_guard 多维护一个是否持锁的状态位",
+      "condition_variable::wait 要求传 unique_lock，不能传 lock_guard",
+      "只可移动，不可拷贝"
+    ],
+    "pits": [
+      "defer_lock 构造后并没有锁，忘了再 lk.lock() 就等于没有互斥保护。",
+      "手动 unlock 之后析构不会再解锁，所以重复解锁不会发生，但临界区边界要自己保证。"
+    ],
+    "example": "std::mutex m;\nstd::unique_lock<std::mutex> lk(m, std::defer_lock);\nlk.lock();\nif (done) lk.unlock();",
+    "link": "https://en.cppreference.com/w/cpp/thread/unique_lock",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "scoped_lock"
+    ],
+    "scope": "scoped_lock",
+    "kind": "类",
+    "brief": "C++17 的多锁守卫：一次锁多个互斥量，内部自己避免死锁。",
+    "sig": "template<class... MutexTypes>\nclass scoped_lock;",
+    "notes": [
+      "等价于 lock_guard 的升级版，带 0 到多个 mutex",
+      "多把锁的顺序自动处理，不用手动排序",
+      "C++17 起"
+    ],
+    "pits": [
+      "只按排他方式上锁，shared_mutex 的共享锁（shared_lock）不在它能力范围内。",
+      "持有多把锁时临界区更长，吞吐会下降，能拆就拆。"
+    ],
+    "example": "std::mutex m1, m2;\n{\n  std::scoped_lock lk(m1, m2);   // 两把一起锁，不会死锁\n  transfer(a, b);\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/scoped_lock",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "recursive_mutex"
+    ],
+    "scope": "recursive_mutex",
+    "kind": "类",
+    "brief": "可重入互斥量：同一线程能重复上锁，解锁次数要和上锁次数相等。",
+    "sig": "class recursive_mutex;",
+    "notes": [
+      "按线程记重入次数，每次 unlock 减一",
+      "比 mutex 慢，而且常常是在掩盖设计问题",
+      "只有递归调用同一把锁的旧代码才需要它"
+    ],
+    "pits": [
+      "解锁次数少于上锁次数时锁永远不放，别的线程全部卡住。",
+      "递归很深时持锁时间极长，其他线程会被饿死。"
+    ],
+    "example": "std::recursive_mutex m;\nvoid f(int n) {\n  std::lock_guard<std::recursive_mutex> lk(m);\n  if (n > 0) f(n - 1);   // 同一线程再次上锁，不会死锁\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/recursive_mutex",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "timed_mutex"
+    ],
+    "scope": "timed_mutex",
+    "kind": "类",
+    "brief": "带超时的互斥量：等锁可以设上限，等不到就返回失败。",
+    "sig": "class timed_mutex {\npublic:\n  void lock();\n  bool try_lock();\n  template<class Rep, class Period> bool try_lock_for(const chrono::duration<Rep, Period>& r);\n  void unlock();\n};",
+    "notes": [
+      "超时上锁失败时并没有拿到锁，不要 unlock",
+      "常配 unique_lock 用，让 RAII 负责解锁",
+      "C++11 起"
+    ],
+    "pits": [
+      "try_lock_for 返回 false 后调用 unlock 是未定义行为。",
+      "用 system_clock 的时间点等锁会被系统对时影响。"
+    ],
+    "example": "std::timed_mutex m;\nif (m.try_lock_for(std::chrono::milliseconds(100))) {\n  work();\n  m.unlock();\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/timed_mutex",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "try_lock_for"
+    ],
+    "scope": "timed_mutex",
+    "kind": "成员函数",
+    "brief": "在给定时长内反复尝试上锁，超时还拿不到就返回 false。",
+    "sig": "template<class Rep, class Period>\nbool try_lock_for(const std::chrono::duration<Rep, Period>& rel_time);",
+    "params": [
+      [
+        "rel_time",
+        "最长等待时长，如 100ms"
+      ]
+    ],
+    "ret": "拿到锁返回 true；超时返回 false。",
+    "notes": [
+      "调用最多阻塞给定这么久",
+      "返回 true 时必须配对 unlock",
+      "C++11 起"
+    ],
+    "pits": [
+      "超时返回 false 却调用 unlock，属于未定义行为。",
+      "实际等待粒度受系统时钟限制，给 1us 往往等得更久。"
+    ],
+    "example": "std::timed_mutex m;\nif (m.try_lock_for(std::chrono::milliseconds(50))) {\n  m.unlock();\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/timed_mutex/try_lock_for",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "defer_lock"
+    ],
+    "scope": "全局",
+    "kind": "对象",
+    "brief": "构造 unique_lock 时的标签：先不上锁，之后再手动 lock。",
+    "sig": "inline constexpr std::defer_lock_t defer_lock;  // C++17 起 inline",
+    "notes": [
+      "配合 std::lock 一次锁多个时使用",
+      "unique_lock(m, defer_lock) 构造后 owns_lock() 为 false",
+      "C++11 起"
+    ],
+    "pits": [
+      "用了 defer_lock 却忘记真正 lock，临界区等于没锁。",
+      "lock_guard / scoped_lock 不接受它，只有 unique_lock 支持。"
+    ],
+    "example": "std::unique_lock<std::mutex> lk(m, std::defer_lock);\n// 现在还没上锁\nlk.lock();",
+    "link": "https://en.cppreference.com/w/cpp/thread/lock_tag",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "adopt_lock"
+    ],
+    "scope": "全局",
+    "kind": "对象",
+    "brief": "标签：mutex 已经锁住了，构造函数不要再锁，只负责析构时解锁。",
+    "sig": "inline constexpr std::adopt_lock_t adopt_lock;  // C++17 起 inline",
+    "notes": [
+      "配合 std::lock 把已拿到的锁转交给守卫",
+      "使用时 mutex 必须确实已被当前线程持有",
+      "C++11 起"
+    ],
+    "pits": [
+      "mutex 没被锁就用 adopt_lock，析构时解锁未持有的锁是未定义行为。",
+      "别和 defer_lock 混：一个表示已锁，一个表示不锁。"
+    ],
+    "example": "m.lock();\nstd::lock_guard<std::mutex> lk(m, std::adopt_lock);   // 接管已上好的锁",
+    "link": "https://en.cppreference.com/w/cpp/thread/lock_tag",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "try_to_lock"
+    ],
+    "scope": "全局",
+    "kind": "对象",
+    "brief": "标签：构造锁守卫时尝试上锁，失败不阻塞、守卫也不持锁。",
+    "sig": "inline constexpr std::try_to_lock_t try_to_lock;  // C++17 起 inline",
+    "notes": [
+      "之后用 owns_lock() 判断有没有拿到",
+      "适合「拿不到就先去干别的」",
+      "C++11 起"
+    ],
+    "pits": [
+      "不检查 owns_lock() 就进临界区，等于无锁访问共享数据。",
+      "lock_guard 也能接受它，但没有 owns_lock 查询，看不出是否拿到锁。"
+    ],
+    "example": "std::unique_lock<std::mutex> lk(m, std::try_to_lock);\nif (lk.owns_lock()) { do_work(); }",
+    "link": "https://en.cppreference.com/w/cpp/thread/lock_tag",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "once_flag"
+    ],
+    "scope": "全局",
+    "kind": "类",
+    "brief": "配合 call_once 保证某段初始化在多线程下只执行一次。",
+    "sig": "class once_flag {\npublic:\n  constexpr once_flag() noexcept;\n  once_flag(const once_flag&) = delete;\n};",
+    "notes": [
+      "用于全局/静态对象，不能拷贝",
+      "内部自带同步，不用额外加锁",
+      "C++11 起"
+    ],
+    "pits": [
+      "flag 不能是局部变量，否则每个线程各一份，等于没保护。",
+      "call_once 里的函数抛异常时不算已完成，下次调用会重试。"
+    ],
+    "example": "std::once_flag flag;\nvoid init() {\n  std::call_once(flag, []{ load_config(); });\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/once_flag",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "call_once"
+    ],
+    "scope": "全局",
+    "kind": "函数",
+    "brief": "保证某个函数在多线程下只被执行一次，常用于惰性初始化。",
+    "sig": "template<class Callable, class... Args>\nvoid call_once(std::once_flag& flag, Callable&& f, Args&&... args);",
+    "params": [
+      [
+        "flag",
+        "记录是否已执行过的 once_flag"
+      ],
+      [
+        "f",
+        "只应执行一次的可调用对象"
+      ]
+    ],
+    "ret": "无。f 抛出的异常会传给调用者，且这次不算执行成功。",
+    "notes": [
+      "其他线程会阻塞等这次执行结束",
+      "比手写双检锁简单可靠",
+      "C++11 起"
+    ],
+    "pits": [
+      "flag 用局部变量就完全失效，必须是静态或全局的。",
+      "f 抛异常后其他等待的线程会再试一次，可能反复失败。"
+    ],
+    "example": "std::once_flag flag;\nstd::call_once(flag, []{ init(); });",
+    "link": "https://en.cppreference.com/w/cpp/thread/call_once",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "condition_variable"
+    ],
+    "scope": "condition_variable",
+    "kind": "类",
+    "brief": "条件变量：让线程在条件成立前挂起等待，由别的线程负责唤醒。",
+    "sig": "class condition_variable {\npublic:\n  void wait(std::unique_lock<std::mutex>& lk);\n  void notify_one() noexcept;\n  void notify_all() noexcept;\n};",
+    "notes": [
+      "必须配 mutex 和共享条件一起用",
+      "只支持 unique_lock<std::mutex>",
+      "生产者-消费者模型的基础设施"
+    ],
+    "pits": [
+      "它本身不保存状态：notify 早于 wait 到达，这次唤醒就丢了。",
+      "条件判断必须在持锁状态下做，并且要带谓词防虚假唤醒。"
+    ],
+    "example": "std::mutex m;\nstd::condition_variable cv;\nbool ready = false;\n// 等待方：\nstd::unique_lock<std::mutex> lk(m);\ncv.wait(lk, []{ return ready; });",
+    "link": "https://en.cppreference.com/w/cpp/thread/condition_variable",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "wait"
+    ],
+    "scope": "condition_variable",
+    "kind": "成员函数",
+    "brief": "释放锁并挂起，直到被唤醒且谓词成立；谓词版自动处理虚假唤醒。",
+    "sig": "void wait(std::unique_lock<std::mutex>& lock);\ntemplate<class Predicate>\nvoid wait(std::unique_lock<std::mutex>& lock, Predicate pred);",
+    "params": [
+      [
+        "lock",
+        "已锁住的 unique_lock，wait 内部先解锁、醒来再锁上"
+      ],
+      [
+        "pred",
+        "条件谓词，返回 true 才真正返回"
+      ]
+    ],
+    "ret": "无。谓词版返回时 pred() 一定为 true。",
+    "notes": [
+      "内部流程：解锁 → 挂起 → 被唤醒 → 重新上锁 → 检查谓词",
+      "谓词版等价于 while (!pred()) wait(lock);",
+      "C++11 起"
+    ],
+    "pits": [
+      "不带谓词的 wait 可能虚假唤醒，醒来时条件根本不成立。",
+      "wait 返回时锁是持有的，别在解锁前做耗时操作。",
+      "谓词读的共享变量必须在持锁下修改，否则仍有数据竞争。"
+    ],
+    "example": "std::unique_lock<std::mutex> lk(m);\ncv.wait(lk, []{ return ready; });   // 返回时 ready 一定为 true\n{\n  std::lock_guard<std::mutex> g(m);\n  ready = true;\n}\ncv.notify_one();",
+    "link": "https://en.cppreference.com/w/cpp/thread/condition_variable/wait",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "wait_for"
+    ],
+    "scope": "condition_variable",
+    "kind": "成员函数",
+    "brief": "最多等一段时长：超时或被唤醒且谓词成立都会返回。",
+    "sig": "template<class Rep, class Period>\nstd::cv_status wait_for(std::unique_lock<std::mutex>& lock,\n  const std::chrono::duration<Rep, Period>& rel_time);\ntemplate<class Rep, class Period, class Predicate>\nbool wait_for(std::unique_lock<std::mutex>& lock,\n  const std::chrono::duration<Rep, Period>& rel_time, Predicate pred);",
+    "params": [
+      [
+        "lock",
+        "已锁住的 unique_lock"
+      ],
+      [
+        "rel_time",
+        "最长等待时长"
+      ],
+      [
+        "pred",
+        "条件谓词"
+      ]
+    ],
+    "ret": "无谓词版返回 cv_status::timeout 或 no_timeout；谓词版返回 pred() 的结果。",
+    "notes": [
+      "谓词版返回 false 表示超时且条件仍不成立",
+      "返回时锁是持有的",
+      "C++11 起"
+    ],
+    "pits": [
+      "no_timeout 只说明不是超时，不说明条件成立。",
+      "超时精度受系统时钟影响，别当硬实时用。"
+    ],
+    "example": "std::unique_lock<std::mutex> lk(m);\nbool ok = cv.wait_for(lk, std::chrono::seconds(1), []{ return ready; });\nif (!ok) { /* 等了一秒还没好 */ }",
+    "link": "https://en.cppreference.com/w/cpp/thread/condition_variable/wait_for",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "wait_until"
+    ],
+    "scope": "condition_variable",
+    "kind": "成员函数",
+    "brief": "一直等到某个绝对时间点，醒来后检查条件。",
+    "sig": "template<class Clock, class Duration>\nstd::cv_status wait_until(std::unique_lock<std::mutex>& lock,\n  const std::chrono::time_point<Clock, Duration>& abs_time);\ntemplate<class Clock, class Duration, class Predicate>\nbool wait_until(std::unique_lock<std::mutex>& lock,\n  const std::chrono::time_point<Clock, Duration>& abs_time, Predicate pred);",
+    "params": [
+      [
+        "lock",
+        "已锁住的 unique_lock"
+      ],
+      [
+        "abs_time",
+        "截止的绝对时间点"
+      ],
+      [
+        "pred",
+        "条件谓词"
+      ]
+    ],
+    "ret": "无谓词版返回 cv_status；谓词版返回 pred() 的结果。",
+    "notes": [
+      "谓词版返回值就是 pred() 的结果",
+      "时间点已过时立即返回",
+      "C++11 起"
+    ],
+    "pits": [
+      "用 system_clock 的时间点会因系统对时提前或延后醒来。",
+      "时间点已过去不等于出错，只是立即返回。"
+    ],
+    "example": "using namespace std::chrono;\nstd::unique_lock<std::mutex> lk(m);\nauto deadline = steady_clock::now() + 500ms;\ncv.wait_until(lk, deadline, []{ return done; });",
+    "link": "https://en.cppreference.com/w/cpp/thread/condition_variable/wait_until",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "notify_one"
+    ],
+    "scope": "condition_variable",
+    "kind": "成员函数",
+    "brief": "唤醒一个正在 wait 的线程；没有等待者时什么也不做。",
+    "sig": "void notify_one() noexcept;",
+    "ret": "无返回值。",
+    "notes": [
+      "不要求持有 mutex，持锁通知通常没必要",
+      "唤醒哪个线程不保证",
+      "适合一个任务只交给一个消费者"
+    ],
+    "pits": [
+      "notify 时没有线程在等，这次通知直接丢失，条件变量不存状态。",
+      "在持锁期间 notify，刚醒的线程会立刻又阻塞在锁上，性能差。"
+    ],
+    "example": "{\n  std::lock_guard<std::mutex> g(m);\n  ready = true;\n}\ncv.notify_one();   // 通知放在解锁之后",
+    "link": "https://en.cppreference.com/w/cpp/thread/condition_variable/notify_one",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "notify_all"
+    ],
+    "scope": "condition_variable",
+    "kind": "成员函数",
+    "brief": "唤醒所有正在 wait 的线程，各自重新争锁并检查条件。",
+    "sig": "void notify_all() noexcept;",
+    "ret": "无返回值。",
+    "notes": [
+      "适合条件一变大家都该动的场景，比如退出标志",
+      "被唤醒的线程仍要重新判断条件",
+      "C++11 起"
+    ],
+    "pits": [
+      "惊群效应：大量线程同时醒来争锁，效率低于逐批通知。",
+      "忘记通知是条件变量最常见的 bug：等待方永远挂起。"
+    ],
+    "example": "{\n  std::lock_guard<std::mutex> g(m);\n  stopping = true;\n}\ncv.notify_all();   // 所有 worker 都该退出",
+    "link": "https://en.cppreference.com/w/cpp/thread/condition_variable/notify_all",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "cv_status"
+    ],
+    "scope": "condition_variable",
+    "kind": "类型",
+    "brief": "wait_for / wait_until 的返回值枚举：正常唤醒还是超时。",
+    "sig": "enum class cv_status { no_timeout, timeout };",
+    "notes": [
+      "定义在 <condition_variable>",
+      "no_timeout 只表示不是超时返回，不代表条件成立",
+      "C++11 起"
+    ],
+    "pits": [
+      "把 no_timeout 当成条件成立，会直接读到没满足的条件。",
+      "谓词版 wait_for / wait_until 返回 bool，不是 cv_status。"
+    ],
+    "example": "if (cv.wait_for(lk, std::chrono::seconds(1)) == std::cv_status::timeout) {\n  // 超时了，条件可能仍不成立\n}",
+    "link": "https://en.cppreference.com/w/cpp/thread/cv_status",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "future"
+    ],
+    "scope": "future",
+    "kind": "类",
+    "brief": "未来结果的句柄：异步任务或 promise 写结果，get() 取走。",
+    "sig": "template<class T> class future;\ntemplate<class T> class future<T&>;\ntemplate<> class future<void>;",
+    "notes": [
+      "get() 只能调用一次，取完 valid() 变 false",
+      "不可拷贝，只能移动",
+      "C++11 起"
+    ],
+    "pits": [
+      "对同一个 future 二次 get 抛 std::future_error。",
+      "async 返回的 future 既不 get 也不 wait，析构时会隐式等待，看着像卡死。"
+    ],
+    "example": "std::future<int> f = std::async([]{ return 42; });\nint v = f.get();   // 阻塞到结果就绪",
+    "link": "https://en.cppreference.com/w/cpp/thread/future",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "get"
+    ],
+    "scope": "future",
+    "kind": "成员函数",
+    "brief": "阻塞等待并取走结果；任务里的异常会在这里重新抛出。",
+    "sig": "T get();\n// future<void> 特化：void get();\n// future<T&> 特化：T& get();",
+    "ret": "异步任务的结果；任务抛了异常就在调用处重抛。",
+    "notes": [
+      "调用一次后 valid() 为 false",
+      "阻塞直到结果就绪",
+      "C++11 起"
+    ],
+    "pits": [
+      "第二次 get 抛 future_error。",
+      "任务异常只有 get 时才暴露，不 get 就永远发现不了。"
+    ],
+    "example": "std::future<int> f = std::async([]{ return 1 + 1; });\nint v = f.get();   // 2",
+    "link": "https://en.cppreference.com/w/cpp/thread/future/get",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "wait"
+    ],
+    "scope": "future",
+    "kind": "成员函数",
+    "brief": "阻塞到结果就绪，但不取走结果。",
+    "sig": "void wait() const;",
+    "ret": "无返回值。",
+    "notes": [
+      "wait 之后 valid() 仍为 true，还能 get",
+      "只保证共享状态 ready",
+      "C++11 起"
+    ],
+    "pits": [
+      "wait 不会抛任务里的异常，异常要等 get 才出现。",
+      "wait 返回不代表任务成功，可能已经抛异常。"
+    ],
+    "example": "std::future<void> f = std::async([]{ prepare(); });\nf.wait();   // 等完，但异常还没暴露",
+    "link": "https://en.cppreference.com/w/cpp/thread/future/wait",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "wait_for"
+    ],
+    "scope": "future",
+    "kind": "成员函数",
+    "brief": "最多等一段时长看结果是否就绪，返回就绪、超时或延迟状态。",
+    "sig": "template<class Rep, class Period>\nstd::future_status wait_for(const std::chrono::duration<Rep, Period>& rel_time) const;",
+    "params": [
+      [
+        "rel_time",
+        "最长等待时长"
+      ]
+    ],
+    "ret": "future_status::ready / timeout / deferred。",
+    "notes": [
+      "deferred 表示任务还没开始执行",
+      "C++11 起",
+      "常配合 launch::async 使用避免 deferred"
+    ],
+    "pits": [
+      "返回 deferred 后仍要 get 才真正执行任务。",
+      "用 wait_for(0ms) 轮询会烧 CPU，要等就直接 wait。"
+    ],
+    "example": "auto st = f.wait_for(std::chrono::milliseconds(10));\nif (st == std::future_status::ready) { f.get(); }",
+    "link": "https://en.cppreference.com/w/cpp/thread/future/wait_for",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "wait_until"
+    ],
+    "scope": "future",
+    "kind": "成员函数",
+    "brief": "等到某个绝对时间点看结果是否就绪。",
+    "sig": "template<class Clock, class Duration>\nstd::future_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) const;",
+    "params": [
+      [
+        "abs_time",
+        "截止的绝对时间点"
+      ]
+    ],
+    "ret": "future_status::ready / timeout / deferred。",
+    "notes": [
+      "和 wait_for 的区别是给绝对时间点",
+      "时间点已过时立即返回",
+      "C++11 起"
+    ],
+    "pits": [
+      "用 system_clock 时间点会被系统对时影响。",
+      "deferred 状态下也会立刻返回 deferred，不等于任务完成。"
+    ],
+    "example": "using namespace std::chrono;\nauto st = f.wait_until(steady_clock::now() + 500ms);\nif (st == std::future_status::ready) { f.get(); }",
+    "link": "https://en.cppreference.com/w/cpp/thread/future/wait_until",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "valid"
+    ],
+    "scope": "future",
+    "kind": "成员函数",
+    "brief": "这个 future 是否还关联着可取结果的共享状态。",
+    "sig": "bool valid() const noexcept;",
+    "ret": "没 get 过、也没被移走时返回 true。",
+    "notes": [
+      "默认构造的 future valid() 为 false",
+      "get 之后变 false",
+      "C++11 起"
+    ],
+    "pits": [
+      "先 valid() 再 get 才安全，尤其 future 被放在容器里移来移去时。",
+      "valid() 为 false 时调 get 抛 future_error。"
+    ],
+    "example": "std::future<int> f = std::async([]{ return 3; });\nif (f.valid()) { int v = f.get(); }",
+    "link": "https://en.cppreference.com/w/cpp/thread/future/valid",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "promise"
+    ],
+    "scope": "promise",
+    "kind": "类",
+    "brief": "手动写入未来结果的容器：set_value 之后配对的 future 就绪。",
+    "sig": "template<class T> class promise;\n// get_future(), set_value(), set_exception()",
+    "notes": [
+      "配对的 future 只能从 get_future() 取一次",
+      "适合把回调式老接口包装成 future",
+      "C++11 起"
+    ],
+    "pits": [
+      "promise 在 set_value 前析构，配对的 future 会抛 broken_promise。",
+      "get_future 调两次抛 future_error。"
+    ],
+    "example": "std::promise<int> p;\nstd::future<int> f = p.get_future();\nstd::thread t([&p]{ p.set_value(7); });\nint v = f.get();\nt.join();",
+    "link": "https://en.cppreference.com/w/cpp/thread/promise",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "set_value"
+    ],
+    "scope": "promise",
+    "kind": "成员函数",
+    "brief": "把结果写进共享状态，正在等这个 future 的线程立刻就绪。",
+    "sig": "void set_value(const T& value);\nvoid set_value(T&& value);\n// promise<void> 特化：void set_value();",
+    "params": [
+      [
+        "value",
+        "要交给 future 的结果"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "每个 promise 只能 set 一次",
+      "set 后与 future 所在线程的操作可并发",
+      "C++11 起"
+    ],
+    "pits": [
+      "重复 set 抛 future_error(promise_already_satisfied)。",
+      "值是在调用时拷贝或移动的，传引用要注意生命周期。"
+    ],
+    "example": "std::promise<std::string> p;\nauto f = p.get_future();\np.set_value(\"done\");   // 之后 f.get() 拿到 done",
+    "link": "https://en.cppreference.com/w/cpp/thread/promise/set_value",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "set_exception"
+    ],
+    "scope": "promise",
+    "kind": "成员函数",
+    "brief": "把异常存进共享状态，future.get() 时在调用方重新抛出。",
+    "sig": "void set_exception(std::exception_ptr p);",
+    "params": [
+      [
+        "p",
+        "异常指针，一般用 std::current_exception()"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "跨线程传递异常的标准做法",
+      "和 set_value 一样只能二选一调一次",
+      "C++11 起"
+    ],
+    "pits": [
+      "set_exception 之后再 set_value 会抛 future_error。",
+      "别把裸指针当异常传，用 exception_ptr 才能安全跨线程。"
+    ],
+    "example": "std::promise<int> p;\nauto f = p.get_future();\ntry { throw std::runtime_error(\"bad\"); }\ncatch (...) { p.set_exception(std::current_exception()); }",
+    "link": "https://en.cppreference.com/w/cpp/thread/promise/set_exception",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "get_future"
+    ],
+    "scope": "promise",
+    "kind": "成员函数",
+    "brief": "取出与这个 promise 配对的 future，用来在别的线程接收结果。",
+    "sig": "std::future<T> get_future();",
+    "ret": "与该 promise 共享同一状态的 future。",
+    "notes": [
+      "每个 promise 只能调用一次",
+      "通常先取 future 再交给工作线程",
+      "C++11 起"
+    ],
+    "pits": [
+      "调两次抛 future_error(future_already_retrieved)。",
+      "忘记把 future 传出去，结果就只能烂在 promise 里。"
+    ],
+    "example": "std::promise<void> p;\nstd::future<void> f = p.get_future();\nstd::thread t([&p]{ p.set_value(); });\nf.wait();\nt.join();",
+    "link": "https://en.cppreference.com/w/cpp/thread/promise/get_future",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "packaged_task"
+    ],
+    "scope": "packaged_task",
+    "kind": "类",
+    "brief": "把可调用对象包成任务：调用它才执行，结果写进内部 future。",
+    "sig": "template<class R, class... Args>\nclass packaged_task<R(Args...)>;",
+    "notes": [
+      "比 async 更可控：何时跑、在哪个线程跑都由你安排",
+      "结果通过 get_future() 取",
+      "C++11 起"
+    ],
+    "pits": [
+      "packaged_task 不可拷贝，放进线程要 std::move。",
+      "析构前没被调用过，future 会收到 broken_promise。"
+    ],
+    "example": "std::packaged_task<int()> task([]{ return 5; });\nauto f = task.get_future();\nstd::thread t(std::move(task));\nint v = f.get();\nt.join();",
+    "link": "https://en.cppreference.com/w/cpp/thread/packaged_task",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "async"
+    ],
+    "scope": "全局",
+    "kind": "函数",
+    "brief": "异步执行一个任务并返回 future，可能开新线程也可能延迟执行。",
+    "sig": "template<class F, class... Args>\nstd::future</*result_of<F(Args...)>*/> async(std::launch policy, F&& f, Args&&... args);\ntemplate<class F, class... Args>\nstd::future</*result_of<F(Args...)>*/> async(F&& f, Args&&... args);",
+    "params": [
+      [
+        "policy",
+        "launch::async 强制新线程，launch::deferred 延迟到 get 才执行"
+      ],
+      [
+        "f",
+        "要异步执行的函数或可调用对象"
+      ],
+      [
+        "args",
+        "传给 f 的参数，按值或移动"
+      ]
+    ],
+    "ret": "future，用 get() 取结果，或接收任务抛出的异常。",
+    "notes": [
+      "不传 policy 时是 async | deferred，行为由实现决定",
+      "C++11 起",
+      "返回的 future 析构会等任务结束"
+    ],
+    "pits": [
+      "默认策略下可能根本没开新线程，别假设它一定并行。",
+      "future 不 get 就离开作用域，析构会阻塞等待，看起来像卡死。",
+      "要真并行必须显式写 std::launch::async。"
+    ],
+    "example": "auto f = std::async(std::launch::async, []{ return compute(); });\nint v = f.get();",
+    "link": "https://en.cppreference.com/w/cpp/thread/async",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "launch"
+    ],
+    "scope": "launch",
+    "kind": "类型",
+    "brief": "async 的执行策略枚举：async 强制新线程，deferred 延迟执行。",
+    "sig": "enum class launch : /*unspecified*/ {\n  async = 0x1,\n  deferred = 0x2,\n};",
+    "notes": [
+      "可写成 launch::async | launch::deferred 组合",
+      "deferred 表示 get / wait 时才在当前线程执行",
+      "C++11 起"
+    ],
+    "pits": [
+      "deferred 的任务永远不会「自己就绪」，wait_for 只会返回 deferred。",
+      "deferred 任务里 this_thread::get_id 拿到的是调用 get 的那个线程。"
+    ],
+    "example": "auto f1 = std::async(std::launch::async, work);\nauto f2 = std::async(std::launch::deferred, work);  // 直到 f2.get() 才跑",
+    "link": "https://en.cppreference.com/w/cpp/thread/launch",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "shared_future"
+    ],
+    "scope": "shared_future",
+    "kind": "类",
+    "brief": "可拷贝的 future：多个线程各拿一份，都能取到同一个结果。",
+    "sig": "template<class T> class shared_future;",
+    "notes": [
+      "get() 返回 const T&，可重复调用",
+      "由 future::share() 或移动构造得到",
+      "C++11 起"
+    ],
+    "pits": [
+      "get 返回引用，共享状态销毁后再用就是悬空引用。",
+      "多线程同时 get 是允许的，但返回的引用只能当只读数据用。"
+    ],
+    "example": "std::future<int> f = std::async([]{ return 9; });\nstd::shared_future<int> sf = f.share();\nstd::cout << sf.get() << sf.get();   // 可以多次取",
+    "link": "https://en.cppreference.com/w/cpp/thread/shared_future",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "get"
+    ],
+    "scope": "shared_future",
+    "kind": "成员函数",
+    "brief": "取共享结果，可以多次调用，返回引用而不是拷贝。",
+    "sig": "const T& get() const;\n// shared_future<void> 特化：void get() const;",
+    "ret": "结果的 const 引用；void 特化无返回值。",
+    "notes": [
+      "调用不改变 valid 状态，能重复 get",
+      "任务的异常也会在这里重抛",
+      "C++11 起"
+    ],
+    "pits": [
+      "返回引用：共享状态释放后再用就是悬空引用。",
+      "多个线程拿到同一引用后并发写，需要自己加锁。"
+    ],
+    "example": "auto sf = std::async([]{ return 1; }).share();\nconst int& a = sf.get();\nconst int& b = sf.get();   // 同一个值",
+    "link": "https://en.cppreference.com/w/cpp/thread/shared_future/get",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "atomic"
+    ],
+    "scope": "atomic",
+    "kind": "类",
+    "brief": "原子类型：读改写不可分割，是比加锁更轻的同步手段。",
+    "sig": "template<class T> struct atomic;\ntemplate<> struct atomic<bool>;\n// 成员：load / store / exchange / fetch_add / compare_exchange_*",
+    "notes": [
+      "默认 memory_order_seq_cst：最安全也最慢",
+      "只保证单个变量原子，多变量组合仍要锁",
+      "C++11 起"
+    ],
+    "pits": [
+      "atomic<int> 的 ++ 是原子的，但 a = a + 1 读两次，不是原子的。",
+      "atomic 对象不可拷贝，也不适合放进需要拷贝的容器。"
+    ],
+    "example": "std::atomic<int> counter{0};\nstd::thread a([&]{ for (int i = 0; i < 1000; ++i) ++counter; });\nstd::thread b([&]{ for (int i = 0; i < 1000; ++i) ++counter; });\na.join(); b.join();   // counter == 2000",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "load"
+    ],
+    "scope": "atomic",
+    "kind": "成员函数",
+    "brief": "原子读取当前值，可指定内存序。",
+    "sig": "T load(std::memory_order order = std::memory_order_seq_cst) const noexcept;",
+    "params": [
+      [
+        "order",
+        "内存序，默认 seq_cst；只读场景可用 relaxed"
+      ]
+    ],
+    "ret": "当前值。",
+    "notes": [
+      "比 seq_cst 更弱的序要自己保证 happens-before",
+      "对 atomic 直接用运算符通常是 seq_cst 的 load",
+      "C++11 起"
+    ],
+    "pits": [
+      "relaxed load 配 relaxed store，不构成任何同步点，看不到别的变量的修改。",
+      "load 只保证读这一个变量原子，组合判断要 compare_exchange 或加锁。"
+    ],
+    "example": "std::atomic<bool> stop{false};\nwhile (!stop.load(std::memory_order_relaxed)) { work(); }",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic/load",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "store"
+    ],
+    "scope": "atomic",
+    "kind": "成员函数",
+    "brief": "原子写入新值，可指定内存序。",
+    "sig": "void store(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept;",
+    "params": [
+      [
+        "desired",
+        "要写入的值"
+      ],
+      [
+        "order",
+        "内存序，默认 seq_cst"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "store 不返回旧值，需要旧值用 exchange",
+      "release 序常用于「发布数据」",
+      "C++11 起"
+    ],
+    "pits": [
+      "把 store 当读改写用会丢更新：两个线程 store 后写的覆盖前写的。",
+      "relaxed store 无法保证它之前的普通写对别的线程可见。"
+    ],
+    "example": "std::atomic<int> flag{0};\nflag.store(1, std::memory_order_release);",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic/store",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "exchange"
+    ],
+    "scope": "atomic",
+    "kind": "成员函数",
+    "brief": "原子地写入新值并返回旧值。",
+    "sig": "T exchange(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept;",
+    "params": [
+      [
+        "desired",
+        "要存入的新值"
+      ],
+      [
+        "order",
+        "内存序，默认 seq_cst"
+      ]
+    ],
+    "ret": "写入之前的旧值。",
+    "notes": [
+      "一条原子操作完成换出，适合切换标志位",
+      "C++11 起",
+      "与 compare_exchange 的区别：exchange 不比较"
+    ],
+    "pits": [
+      "换出来的旧值如果代表资源，别忘了释放。",
+      "它不检查旧值，用法和 compare_exchange 完全不同，别混。"
+    ],
+    "example": "std::atomic<bool> busy{false};\nif (!busy.exchange(true)) { /* 拿到锁 */ }",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic/exchange",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "fetch_add"
+    ],
+    "scope": "atomic",
+    "kind": "成员函数",
+    "brief": "原子地加一个值，返回加之前的旧值。",
+    "sig": "T fetch_add(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept;",
+    "params": [
+      [
+        "arg",
+        "加数，可以是负数"
+      ],
+      [
+        "order",
+        "内存序，默认 seq_cst"
+      ]
+    ],
+    "ret": "加之前的旧值。",
+    "notes": [
+      "常用于计数器、分配序号",
+      "整数和指针特化才有；指针按元素大小偏移",
+      "C++11 起"
+    ],
+    "pits": [
+      "C++20 前浮点 atomic 没有 fetch_add；C++20 起 atomic<double> 可用，但跨类型累加仍常写 compare_exchange 循环。"
+    ],
+    "example": "std::atomic<int> idx{0};\nint id = idx.fetch_add(1);   // id 是旧值，拿到的序号从 0 开始",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic/fetch_add",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "fetch_sub"
+    ],
+    "scope": "atomic",
+    "kind": "成员函数",
+    "brief": "原子地减一个值，返回减之前的旧值。",
+    "sig": "T fetch_sub(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept;",
+    "params": [
+      [
+        "arg",
+        "减数"
+      ],
+      [
+        "order",
+        "内存序，默认 seq_cst"
+      ]
+    ],
+    "ret": "减之前的旧值。",
+    "notes": [
+      "引用计数、剩余任务数的常见实现",
+      "C++11 起",
+      "指针特化按元素大小偏移"
+    ],
+    "pits": [
+      "判断「减到 0」要用返回值 == 1，因为返回的是旧值。",
+      "无符号类型减过头会回绕成巨大的数。"
+    ],
+    "example": "std::atomic<int> remain{3};\nif (remain.fetch_sub(1) == 1) { finish(); }   // 最后一个",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic/fetch_sub",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "compare_exchange_weak"
+    ],
+    "scope": "atomic",
+    "kind": "成员函数",
+    "brief": "原子比较并交换，允许虚假失败：相等写新值，不等把当前值写回 expected。",
+    "sig": "bool compare_exchange_weak(T& expected, T desired,\n  std::memory_order success = std::memory_order_seq_cst,\n  std::memory_order failure = std::memory_order_seq_cst) noexcept;",
+    "params": [
+      [
+        "expected",
+        "期望值；失败时被改写为当前实际值"
+      ],
+      [
+        "desired",
+        "相等时写入的新值"
+      ],
+      [
+        "success",
+        "成功时的内存序"
+      ],
+      [
+        "failure",
+        "失败时的内存序，不能比 success 更严格"
+      ]
+    ],
+    "ret": "成功返回 true；失败返回 false，并把实际值写回 expected。",
+    "notes": [
+      "weak 允许虚假失败，适合放在循环里重试",
+      "单次判定用 strong 更合适",
+      "C++11 起"
+    ],
+    "pits": [
+      "失败时 expected 被改写，循环里要重新比对，不能复用旧变量。",
+      "循环里忘记用 expected 记住新值，会一直空转失败。",
+      "用 weak 做「只判断一次」的检查可能假失败，所以它基本只该出现在循环里。"
+    ],
+    "example": "std::atomic<int> v{0};\nint expected = v.load();\nwhile (!v.compare_exchange_weak(expected, expected + 1)) { }",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic/compare_exchange",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "compare_exchange_strong"
+    ],
+    "scope": "atomic",
+    "kind": "成员函数",
+    "brief": "原子比较并交换，不发生虚假失败：一次判定的结果可信。",
+    "sig": "bool compare_exchange_strong(T& expected, T desired,\n  std::memory_order success = std::memory_order_seq_cst,\n  std::memory_order failure = std::memory_order_seq_cst) noexcept;",
+    "params": [
+      [
+        "expected",
+        "期望值；失败时被改写为当前实际值"
+      ],
+      [
+        "desired",
+        "相等时写入的新值"
+      ]
+    ],
+    "ret": "成功返回 true；失败返回 false，expected 被写成当前值。",
+    "notes": [
+      "适合一次性的「旧值仍是 X 就更新」",
+      "比 weak 稍慢，但不用重试",
+      "C++11 起"
+    ],
+    "pits": [
+      "失败后 expected 已经被改写，别拿它当原来的值继续用。",
+      "用它更新多个字段无法保证整体原子，多变量一致性仍要加锁。"
+    ],
+    "example": "std::atomic<int> state{0};\nint expected = 0;\nif (!state.compare_exchange_strong(expected, 1)) {\n  // 被别人抢先改了，expected 现在是实际值\n}",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic/compare_exchange",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "is_lock_free"
+    ],
+    "scope": "atomic",
+    "kind": "成员函数",
+    "brief": "查询这个原子类型在当前平台上的操作是不是真的无锁。",
+    "sig": "bool is_lock_free() const noexcept;",
+    "ret": "底层用无锁指令实现时返回 true。",
+    "notes": [
+      "大的类型（如 16 字节 atomic）常退化成内部锁",
+      "运行期查询，不同平台结果不同",
+      "C++11 起"
+    ],
+    "pits": [
+      "无锁不等于无等待，可能仍是靠 CAS 重试实现。",
+      "为 true 也不代表组合操作原子，多变量一致性仍要自己保证。"
+    ],
+    "example": "std::atomic<long long> x{0};\nbool lf = x.is_lock_free();   // 结果依平台而定",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic/is_lock_free",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "memory_order"
+    ],
+    "scope": "memory_order",
+    "kind": "类型",
+    "brief": "内存序枚举：规定原子操作周围的读写如何跨线程可见，是性能与正确性的旋钮。",
+    "sig": "enum class memory_order {\n  relaxed, consume, acquire, release,\n  acq_rel, seq_cst\n};",
+    "notes": [
+      "默认也最强的是 seq_cst",
+      "release 与 acquire 配对建立 happens-before",
+      "relaxed 只保证该变量自身原子性"
+    ],
+    "pits": [
+      "乱降级内存序会得到「偶尔出错」的数据竞争，极难排查。",
+      "consume 实际上各编译器都按 acquire 处理，不要使用。",
+      "memory_order 不能替代同步：它只约束原子操作附近的可见性。"
+    ],
+    "example": "std::atomic<bool> ready{false};\nint data = 0;\ndata = 42;\nready.store(true, std::memory_order_release);\nwhile (!ready.load(std::memory_order_acquire)) { }",
+    "link": "https://en.cppreference.com/w/cpp/atomic/memory_order",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "atomic_flag"
+    ],
+    "scope": "atomic_flag",
+    "kind": "类",
+    "brief": "最简单的原子布尔标志，保证无锁，只有 test_and_set 和 clear。",
+    "sig": "struct atomic_flag {\n  bool test_and_set(std::memory_order order = std::memory_order_seq_cst) noexcept;\n  void clear(std::memory_order order = std::memory_order_seq_cst) noexcept;\n};",
+    "notes": [
+      "保证 lock-free，可实现自旋锁",
+      "C++20 起有 test() 和默认初始化",
+      "C++11 起"
+    ],
+    "pits": [
+      "C++20 前默认构造状态未指定，必须显式 clear 或用 ATOMIC_FLAG_INIT。",
+      "用自旋锁等待长临界区会白烧 CPU。"
+    ],
+    "example": "std::atomic_flag lock = ATOMIC_FLAG_INIT;\nwhile (lock.test_and_set(std::memory_order_acquire)) { }\n// 临界区\nlock.clear(std::memory_order_release);",
+    "link": "https://en.cppreference.com/w/cpp/atomic/atomic_flag",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "unique_ptr"
+    ],
+    "scope": "智能指针",
+    "kind": "类",
+    "brief": "独占所有权的智能指针：不可拷贝，离开作用域自动 delete。",
+    "sig": "template<class T, class Deleter = std::default_delete<T>>\nclass unique_ptr;\ntemplate<class T, class Deleter> class unique_ptr<T[], Deleter>;",
+    "notes": [
+      "无状态删除器时大小和裸指针一样",
+      "只可移动，用 std::move 转移所有权",
+      "C++11 起；C++14 有 make_unique"
+    ],
+    "pits": [
+      "用同一个裸指针构造两个 unique_ptr，会重复释放。",
+      "把 unique_ptr 传值给函数必须 std::move，否则编译不过。"
+    ],
+    "example": "std::unique_ptr<Foo> p = std::make_unique<Foo>();\nstd::unique_ptr<Foo> q = std::move(p);\n// p 现在为空，q 负责释放",
+    "link": "https://en.cppreference.com/w/cpp/memory/unique_ptr",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "shared_ptr"
+    ],
+    "scope": "智能指针",
+    "kind": "类",
+    "brief": "共享所有权的智能指针：引用计数归零时才释放对象。",
+    "sig": "template<class T> class shared_ptr;",
+    "notes": [
+      "拷贝即加计数，计数操作有原子开销",
+      "控制块和对象通常分开，make_shared 会合并分配",
+      "C++11 起"
+    ],
+    "pits": [
+      "循环引用让计数永远不归零，对象不会释放，要用 weak_ptr 破环。",
+      "两个 shared_ptr 各自从同一裸指针构造，会各释放一次，double free。"
+    ],
+    "example": "auto p = std::make_shared<Foo>();\nauto q = p;   // 引用计数变为 2\nstd::cout << p.use_count() << '\\n';   // 2",
+    "link": "https://en.cppreference.com/w/cpp/memory/shared_ptr",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "weak_ptr"
+    ],
+    "scope": "智能指针",
+    "kind": "类",
+    "brief": "弱引用：观察 shared_ptr 管理的对象但不增加计数，用来断开循环引用。",
+    "sig": "template<class T> class weak_ptr;",
+    "notes": [
+      "lock() 得到 shared_ptr，对象已销毁则得到空",
+      "不参与计数，不影响对象生命周期",
+      "C++11 起"
+    ],
+    "pits": [
+      "weak_ptr 不能直接解引用，必须先 lock() 再判空。",
+      "循环引用中只要有两个 shared_ptr 互指，靠 weak_ptr 才能打破其中一个方向。"
+    ],
+    "example": "std::weak_ptr<Foo> w = p;\nif (auto sp = w.lock()) {\n  sp->use();   // 对象还活着\n}",
+    "link": "https://en.cppreference.com/w/cpp/memory/weak_ptr",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "make_unique"
+    ],
+    "scope": "智能指针",
+    "kind": "函数",
+    "brief": "创建 unique_ptr 的推荐写法，C++14 起可用。",
+    "sig": "template<class T, class... Args>\nstd::unique_ptr<T> make_unique(Args&&... args);\ntemplate<class T>\nstd::unique_ptr<T> make_unique(std::size_t n);  // 数组版",
+    "params": [
+      [
+        "args",
+        "转发给 T 构造函数的参数"
+      ]
+    ],
+    "ret": "持有新对象的 unique_ptr。",
+    "notes": [
+      "异常安全：不会出现 new 成功但指针没被接管的窗口",
+      "C++14 起；C++11 得自己写",
+      "数组版写 make_unique<T[]>(n)"
+    ],
+    "pits": [
+      "make_unique 不能传自定义删除器，需要时直接构造 unique_ptr。",
+      "make_unique<T>(n) 对非数组 T 是转发参数，不是分配 n 个元素。"
+    ],
+    "example": "auto p = std::make_unique<std::vector<int>>(10, 0);\nauto arr = std::make_unique<int[]>(5);",
+    "link": "https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique",
+    "since": "C++14"
+  },
+  {
+    "keys": [
+      "make_shared"
+    ],
+    "scope": "智能指针",
+    "kind": "函数",
+    "brief": "一次分配就创建对象和控制块，是创建 shared_ptr 的推荐方式。",
+    "sig": "template<class T, class... Args>\nstd::shared_ptr<T> make_shared(Args&&... args);",
+    "params": [
+      [
+        "args",
+        "转发给 T 构造函数的参数"
+      ]
+    ],
+    "ret": "指向新对象的 shared_ptr。",
+    "notes": [
+      "对象与控制块一次分配，比 shared_ptr(new T) 少一次分配",
+      "异常安全",
+      "C++11 起"
+    ],
+    "pits": [
+      "make_shared 的对象要等控制块一起释放，弱引用没清时对象内存也不回收。",
+      "需要自定义删除器时不能用 make_shared。"
+    ],
+    "example": "auto p = std::make_shared<std::string>(\"hi\");\nauto q = std::make_shared<Foo>(1, 2);",
+    "link": "https://en.cppreference.com/w/cpp/memory/shared_ptr/make_shared",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "release"
+    ],
+    "scope": "unique_ptr",
+    "kind": "成员函数",
+    "brief": "放弃所有权并返回裸指针，对象本身不会被释放。",
+    "sig": "pointer release() noexcept;",
+    "ret": "之前管理的裸指针；之后 unique_ptr 变为空。",
+    "notes": [
+      "调用方负责 delete 或交给另一个智能指针",
+      "和 reset() 的区别：release 不销毁对象",
+      "C++11 起"
+    ],
+    "pits": [
+      "release 后忘记接管返回值，直接内存泄漏。",
+      "release 出来的裸指针别再拿去构造 shared_ptr，会双删。"
+    ],
+    "example": "auto p = std::make_unique<int>(5);\nint* raw = p.release();   // p 变空，raw 要自己 delete",
+    "link": "https://en.cppreference.com/w/cpp/memory/unique_ptr/release",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "reset"
+    ],
+    "scope": "unique_ptr",
+    "kind": "成员函数",
+    "brief": "释放当前对象、接管新指针；不传参数就只释放变空。",
+    "sig": "void reset(pointer p = pointer()) noexcept;",
+    "params": [
+      [
+        "p",
+        "新的裸指针；默认空表示只释放不接管"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "等价于先 delete 旧对象再接管新指针",
+      "reset() 无参就是提前释放",
+      "C++11 起"
+    ],
+    "pits": [
+      "reset(自己原来的裸指针) 会先 delete 再用悬空指针，未定义行为。",
+      "unique_ptr 的 reset 会真的 delete 对象，不只是清空指针。"
+    ],
+    "example": "auto p = std::make_unique<int>(1);\np.reset(new int(2));   // 旧的 1 被 delete\np.reset();             // 释放，p 变空",
+    "link": "https://en.cppreference.com/w/cpp/memory/unique_ptr/reset",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "reset"
+    ],
+    "scope": "shared_ptr",
+    "kind": "成员函数",
+    "brief": "放弃当前对象或换新指针，引用计数相应变化。",
+    "sig": "void reset() noexcept;\ntemplate<class Y> void reset(Y* p);",
+    "params": [
+      [
+        "p",
+        "要接管的新裸指针"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "只减少自己这一次引用，其他 shared_ptr 仍持有对象",
+      "reset() 后自己变空",
+      "C++11 起"
+    ],
+    "pits": [
+      "用 reset 接管已经属于另一个 shared_ptr 的裸指针，会造成重复释放。",
+      "循环引用下 reset 本端也救不回对象，另一端还持有。"
+    ],
+    "example": "auto p = std::make_shared<int>(1);\nauto q = p;\np.reset();            // 计数 2 → 1，对象还在\nstd::cout << q.use_count() << '\\n';   // 1",
+    "link": "https://en.cppreference.com/w/cpp/memory/shared_ptr/reset",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "get"
+    ],
+    "scope": "unique_ptr",
+    "kind": "成员函数",
+    "brief": "取出裸指针用于观察，不转移所有权。",
+    "sig": "pointer get() const noexcept;",
+    "ret": "内部裸指针，可能为空。",
+    "notes": [
+      "只借用，不能 delete 它",
+      "要移交所有权用 release 或 std::move",
+      "C++11 起"
+    ],
+    "pits": [
+      "拿 get() 的指针去构造另一个智能指针，必然双删。",
+      "unique_ptr 析构后，之前 get() 出来的指针立刻悬空。"
+    ],
+    "example": "auto p = std::make_unique<Foo>();\nFoo* raw = p.get();   // raw 不拥有对象\nraw->use();",
+    "link": "https://en.cppreference.com/w/cpp/memory/unique_ptr/get",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "use_count"
+    ],
+    "scope": "shared_ptr",
+    "kind": "成员函数",
+    "brief": "当前有多少个 shared_ptr 共享同一个对象，主要用于调试。",
+    "sig": "long use_count() const noexcept;",
+    "ret": "引用计数；空 shared_ptr 返回 0。",
+    "notes": [
+      "值随时会被别的线程改变，不能作为同步依据",
+      "只用于诊断和日志",
+      "C++11 起"
+    ],
+    "pits": [
+      "把 use_count() == 1 当作「没别人在用」并就地改对象，多线程下会踩数据竞争。",
+      "引用计数是原子的，但它指向的对象不是线程安全的。"
+    ],
+    "example": "auto p = std::make_shared<int>(1);\nauto q = p;\nstd::cout << p.use_count() << '\\n';   // 2",
+    "link": "https://en.cppreference.com/w/cpp/memory/shared_ptr/use_count",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "lock"
+    ],
+    "scope": "weak_ptr",
+    "kind": "成员函数",
+    "brief": "把 weak_ptr 提升为 shared_ptr：对象还活着就拿到有效指针。",
+    "sig": "std::shared_ptr<T> lock() const noexcept;",
+    "ret": "对象仍存活时返回非空 shared_ptr，否则返回空。",
+    "notes": [
+      "提升成功后对象在这份 shared_ptr 活着期间不会被释放",
+      "配合 weak_ptr 做缓存或观察者",
+      "C++11 起"
+    ],
+    "pits": [
+      "lock() 结果不判空就解引用，等于空指针访问。",
+      "每次访问都 lock 开销不小，循环里可先取出来复用。"
+    ],
+    "example": "std::weak_ptr<Foo> w = p;\nif (auto sp = w.lock()) {\n  sp->use();\n}",
+    "link": "https://en.cppreference.com/w/cpp/memory/weak_ptr/lock",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "enable_shared_from_this"
+    ],
+    "scope": "智能指针",
+    "kind": "类",
+    "brief": "让对象内部安全地拿到指向自己的 shared_ptr，避免重复构造出两个所有权。",
+    "sig": "template<class T> class enable_shared_from_this;",
+    "notes": [
+      "继承它，并在对象已被 shared_ptr 接管后再调用",
+      "shared_from_this() 内部用 weak_ptr 提升",
+      "C++11 起"
+    ],
+    "pits": [
+      "对象不是由 shared_ptr 管理时调用 shared_from_this() 抛 bad_weak_ptr。",
+      "在构造函数里调用同样抛异常，那时还没有 shared_ptr 接管。"
+    ],
+    "example": "class Session : public std::enable_shared_from_this<Session> {\npublic:\n  void send() { auto self = shared_from_this(); }\n};",
+    "link": "https://en.cppreference.com/w/cpp/memory/enable_shared_from_this",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "shared_from_this"
+    ],
+    "scope": "enable_shared_from_this",
+    "kind": "成员函数",
+    "brief": "返回指向 this 的 shared_ptr，前提是对象已被 shared_ptr 管理。",
+    "sig": "std::shared_ptr<T> shared_from_this();\nstd::shared_ptr<const T> shared_from_this() const;",
+    "ret": "与外部持有者共享所有权的 shared_ptr。",
+    "notes": [
+      "C++17 起还有 weak_from_this()",
+      "返回值会让引用计数加一",
+      "C++11 起"
+    ],
+    "pits": [
+      "在构造函数或析构函数里调用：构造时还没有 shared_ptr，析构时计数已归零，都抛异常。",
+      "栈上对象调用直接抛 bad_weak_ptr。"
+    ],
+    "example": "class Node : public std::enable_shared_from_this<Node> {\npublic:\n  std::shared_ptr<Node> self() { return shared_from_this(); }\n};",
+    "link": "https://en.cppreference.com/w/cpp/memory/enable_shared_from_this/shared_from_this",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "bad_alloc"
+    ],
+    "scope": "内存管理",
+    "kind": "类",
+    "brief": "new 申请内存失败时抛出的异常，可以捕获它做降级处理。",
+    "sig": "class bad_alloc : public std::exception {\npublic:\n  const char* what() const noexcept override;\n};",
+    "notes": [
+      "定义在 <new>",
+      "分配失败默认抛它，不返回空指针",
+      "C++11 起 what() 标记为 noexcept"
+    ],
+    "pits": [
+      "以为 new 失败返回 nullptr 是错的：默认抛异常，所以判空永远不成立。",
+      "捕获后马上再申请同样大小，通常还是失败。"
+    ],
+    "example": "try {\n  auto p = std::make_unique<int[]>(1'000'000'000);\n} catch (const std::bad_alloc& e) {\n  std::cerr << e.what() << '\\n';\n}",
+    "link": "https://en.cppreference.com/w/cpp/memory/new/bad_alloc",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "move"
+    ],
+    "scope": "全局",
+    "kind": "函数",
+    "brief": "把左值无条件转成右值引用，让移动构造、移动赋值有机会被选中。",
+    "sig": "template<class T>\ntypename std::remove_reference<T>::type&& move(T&& t) noexcept;",
+    "params": [
+      [
+        "t",
+        "要被转成右值引用的对象"
+      ]
+    ],
+    "ret": "转换后的右值引用；它本身不移动任何东西。",
+    "notes": [
+      "只是类型转换，真正的移动发生在移动构造或移动赋值里",
+      "C++11 起",
+      "转发场景用 std::forward 区分左右值"
+    ],
+    "pits": [
+      "对 const 对象 move 得到 const 右值，仍然退化成拷贝。",
+      "move 之后源对象处于有效但未指定状态，别再假设它还是原值。",
+      "对函数内局部变量写 return std::move(x) 反而会阻止 NRVO。"
+    ],
+    "example": "std::vector<int> a = {1, 2, 3};\nstd::vector<int> b = std::move(a);   // 这里才真的搬走\n// a 现在为空，但仍是有效对象",
+    "link": "https://en.cppreference.com/w/cpp/utility/move",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "forward"
+    ],
+    "scope": "全局",
+    "kind": "函数",
+    "brief": "在模板转发函数里保持实参原来的左值/右值属性，用于完美转发。",
+    "sig": "template<class T>\nconstexpr T&& forward(std::remove_reference_t<T>& t) noexcept;\ntemplate<class T>\nconstexpr T&& forward(std::remove_reference_t<T>&& t) noexcept;",
+    "params": [
+      [
+        "t",
+        "要转发的参数"
+      ],
+      [
+        "T",
+        "模板参数，决定转成左值还是右值引用"
+      ]
+    ],
+    "ret": "保持原本值类别的引用。",
+    "notes": [
+      "模板实参必须显式写成 T，漏了会推导错",
+      "C++11 起",
+      "普通函数里转发用 move 就够，只在模板里用 forward"
+    ],
+    "pits": [
+      "漏写模板实参 forward(t)，右值会被悄悄当成左值拷贝。",
+      "对同一个参数 forward 两次，第二次可能用到已被移走的值。"
+    ],
+    "example": "template<class T>\nvoid wrapper(T&& x) {\n  handle(std::forward<T>(x));   // 左值进左值，右值进右值\n}",
+    "link": "https://en.cppreference.com/w/cpp/utility/forward",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "chrono"
+    ],
+    "scope": "chrono",
+    "kind": "命名空间",
+    "brief": "时间库命名空间：时长 duration 和时钟 clock 都在里面。",
+    "sig": "namespace std::chrono;  // duration, time_point, steady_clock, system_clock, duration_cast",
+    "notes": [
+      "duration 表示时长，time_point 表示时刻",
+      "C++11 起；C++20 加了日历和时区",
+      "别把时长和时刻混用"
+    ],
+    "pits": [
+      "不同时钟的 time_point 不能相减或比较，编译期就报错。",
+      "duration 的整数换算会截断，毫秒转秒可能是 0。"
+    ],
+    "example": "using namespace std::chrono;\nauto t0 = steady_clock::now();\nwork();\nauto ms = duration_cast<milliseconds>(steady_clock::now() - t0).count();",
+    "link": "https://en.cppreference.com/w/cpp/chrono",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "duration"
+    ],
+    "scope": "chrono",
+    "kind": "类",
+    "brief": "时长模板：一个计数值加一个单位，如 100 毫秒、2 秒。",
+    "sig": "template<class Rep, class Period = std::ratio<1>>\nclass duration;",
+    "notes": [
+      "Rep 是计数的类型，Period 是单位比例",
+      "不丢精度的单位转换可以隐式进行",
+      "C++11 起"
+    ],
+    "pits": [
+      "duration<double> 与 duration<int> 混用时精度规则不同，转换会截断。",
+      "C++20 前不能直接流输出，要先 duration_cast 再取 count()。"
+    ],
+    "example": "std::chrono::duration<double> half(0.5);      // 0.5 秒\nstd::chrono::milliseconds ms(500);\nauto s = std::chrono::duration_cast<std::chrono::seconds>(ms);   // 0s",
+    "link": "https://en.cppreference.com/w/cpp/chrono/duration",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "milliseconds"
+    ],
+    "scope": "chrono",
+    "kind": "类型",
+    "brief": "毫秒精度的时长类型，常配 sleep_for、wait_for 使用。",
+    "sig": "using milliseconds = std::chrono::duration</*至少 45 位的有符号整数*/, std::milli>;",
+    "notes": [
+      "C++14 起有字面量 100ms",
+      "定义在 <chrono>",
+      "C++11 起"
+    ],
+    "pits": [
+      "写 milliseconds(100) 时别漏 std::chrono 命名空间。",
+      "把毫秒数当秒用：milliseconds(1000) 是 1 秒，不是 1000 秒。"
+    ],
+    "example": "std::this_thread::sleep_for(std::chrono::milliseconds(100));\nstd::this_thread::sleep_for(100ms);   // C++14 起写法更短",
+    "link": "https://en.cppreference.com/w/cpp/chrono/duration",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "seconds"
+    ],
+    "scope": "chrono",
+    "kind": "类型",
+    "brief": "秒单位时长，是很多时间接口的默认单位。",
+    "sig": "using seconds = std::chrono::duration</*至少 35 位的有符号整数*/, std::ratio<1>>;",
+    "notes": [
+      "C++14 起有字面量 1s",
+      "别和 time_t 直接混用",
+      "C++11 起"
+    ],
+    "pits": [
+      "seconds 是整秒，毫秒级的等待被它截断成 0。",
+      "和 time_t 互转要先经过 system_clock::time_point。"
+    ],
+    "example": "std::chrono::seconds s(3);\nauto ms = std::chrono::duration_cast<std::chrono::milliseconds>(s);   // 3000",
+    "link": "https://en.cppreference.com/w/cpp/chrono/duration",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "steady_clock"
+    ],
+    "scope": "chrono",
+    "kind": "类",
+    "brief": "单调时钟：只会前进，适合测时间间隔和做超时基准。",
+    "sig": "class steady_clock {\npublic:\n  static time_point now() noexcept;\n  static constexpr bool is_steady = true;\n};",
+    "notes": [
+      "不受系统改时间影响",
+      "C++11 起",
+      "测耗时就用它，不要用 system_clock"
+    ],
+    "pits": [
+      "起点是实现定义的，不能当成日历时间显示。",
+      "不同平台分辨率不同，极短间隔测出来可能是 0。"
+    ],
+    "example": "auto t0 = std::chrono::steady_clock::now();\nwork();\nauto cost = std::chrono::steady_clock::now() - t0;",
+    "link": "https://en.cppreference.com/w/cpp/chrono/steady_clock",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "now"
+    ],
+    "scope": "steady_clock",
+    "kind": "函数",
+    "brief": "取 steady_clock 的当前时间点，用来算间隔或做超时判断。",
+    "sig": "static std::chrono::steady_clock::time_point now() noexcept;",
+    "ret": "当前时间点。",
+    "notes": [
+      "两次 now() 相减得到时长",
+      "单调递增，可以安全做超时判断",
+      "C++11 起"
+    ],
+    "pits": [
+      "把它和 system_clock 的时间点相减会编译失败。",
+      "now 不是免费的，热点循环里高频调用会拖慢代码。"
+    ],
+    "example": "auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);\nwhile (std::chrono::steady_clock::now() < deadline) { poll(); }",
+    "link": "https://en.cppreference.com/w/cpp/chrono/steady_clock/now",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "system_clock"
+    ],
+    "scope": "chrono",
+    "kind": "类",
+    "brief": "系统时钟：能换算成日历时间，但可能被对时调整。",
+    "sig": "class system_clock {\npublic:\n  static time_point now() noexcept;\n  static std::time_t to_time_t(const time_point& t) noexcept;\n  static time_point from_time_t(std::time_t t) noexcept;\n};",
+    "notes": [
+      "能和 time_t 互转，适合显示日期时间",
+      "不是单调的，可能被 NTP 回拨",
+      "C++11 起"
+    ],
+    "pits": [
+      "用它测耗时或做超时，系统对时会让结果偏小甚至为负。",
+      "分辨率不等于精度，能显示到毫秒不代表真的准。"
+    ],
+    "example": "auto now = std::chrono::system_clock::now();\nstd::time_t t = std::chrono::system_clock::to_time_t(now);\nstd::cout << std::ctime(&t);",
+    "link": "https://en.cppreference.com/w/cpp/chrono/system_clock",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "now"
+    ],
+    "scope": "system_clock",
+    "kind": "函数",
+    "brief": "取系统时钟当前时间点，可转成 time_t 用来显示日期。",
+    "sig": "static std::chrono::system_clock::time_point now() noexcept;",
+    "ret": "当前系统时间点。",
+    "notes": [
+      "转 time_t 用 system_clock::to_time_t",
+      "C++11 起",
+      "只适合「墙上时间」用途"
+    ],
+    "pits": [
+      "拿它算经过时间，遇到对时会得到错误结果。",
+      "多线程里连续两次 now 可能因为对时返回相同的值。"
+    ],
+    "example": "auto t = std::chrono::system_clock::now();\nauto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch());",
+    "link": "https://en.cppreference.com/w/cpp/chrono/system_clock/now",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "duration_cast"
+    ],
+    "scope": "chrono",
+    "kind": "函数",
+    "brief": "在两种时长单位之间显式转换，小数部分直接截断。",
+    "sig": "template<class ToDuration, class Rep, class Period>\nconstexpr ToDuration duration_cast(const std::chrono::duration<Rep, Period>& d);",
+    "params": [
+      [
+        "d",
+        "要转换的时长"
+      ],
+      [
+        "ToDuration",
+        "目标时长类型，如 seconds、milliseconds"
+      ]
+    ],
+    "ret": "转换后的时长，不足一个单位的部分被丢弃。",
+    "notes": [
+      "整除截断，不是四舍五入",
+      "隐式转换只在不会丢精度时允许",
+      "C++11 起"
+    ],
+    "pits": [
+      "毫秒转秒直接截断：1999ms 变 1s，别当成四舍五入。",
+      "要向上取整得自己判断余数，duration_cast 不做这件事。"
+    ],
+    "example": "std::chrono::milliseconds ms(1999);\nauto s = std::chrono::duration_cast<std::chrono::seconds>(ms);\nstd::cout << s.count();   // 1",
+    "link": "https://en.cppreference.com/w/cpp/chrono/duration/duration_cast",
+    "since": "C++11"
+  }
+]

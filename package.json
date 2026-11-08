@@ -1,0 +1,90 @@
+{
+  "name": "cpp-zh-hover",
+  "displayName": "C++ 中文接口提示",
+  "description": "鼠标悬停在 C++ 接口上显示中文解释：一句话说明、签名、参数、返回值、复杂度、常见坑与示例。本地词条，离线可用。",
+  "version": "0.1.0",
+  "publisher": "cxly",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Education"
+  ],
+  "keywords": [
+    "c++",
+    "中文",
+    "文档",
+    "悬停",
+    "hover",
+    "chinese",
+    "cpp"
+  ],
+  "activationEvents": [
+    "onLanguage:cpp",
+    "onLanguage:c",
+    "onLanguage:objective-cpp",
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "C++ 中文接口提示",
+      "properties": {
+        "cppZhHover.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "总开关。关掉后悬停不再显示中文卡片。"
+        },
+        "cppZhHover.languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "cpp",
+            "c",
+            "objective-cpp"
+          ],
+          "description": "在哪些 VS Code 语言 id 上生效。"
+        },
+        "cppZhHover.showExample": {
+          "type": "boolean",
+          "default": true,
+          "description": "卡片里是否显示示例代码。"
+        },
+        "cppZhHover.showPits": {
+          "type": "boolean",
+          "default": true,
+          "description": "卡片里是否显示「坑」。"
+        },
+        "cppZhHover.showLink": {
+          "type": "boolean",
+          "default": true,
+          "description": "卡片底部是否显示中文文档链接。"
+        },
+        "cppZhHover.maxCards": {
+          "type": "number",
+          "default": 3,
+          "description": "同名符号（如 wait、lock）最多显示几张卡片。"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "cppZhHover.stats",
+        "title": "C++ 中文提示：查看词条统计"
+      },
+      {
+        "command": "cppZhHover.reload",
+        "title": "C++ 中文提示：重新加载词条"
+      }
+    ]
+  },
+  "scripts": {
+    "test": "node test/run-tests.js",
+    "validate": "node scripts/validate.js --all",
+    "preview": "node scripts/preview.js"
+  }
+}

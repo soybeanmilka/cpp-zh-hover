@@ -1,0 +1,1924 @@
+[
+  {
+    "keys": [
+      "sort"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把 [first, last) 区间按升序（或 comp 规则）就地重排。",
+    "sig": "template<class RandomIt>\nvoid sort(RandomIt first, RandomIt last);\ntemplate<class RandomIt, class Compare>\nvoid sort(RandomIt first, RandomIt last, Compare comp);",
+    "params": [
+      [
+        "first, last",
+        "要排序的随机访问迭代器区间，左闭右开"
+      ],
+      [
+        "comp",
+        "严格弱序比较器：comp(a,b) 为 true 表示 a 应排在 b 前面"
+      ]
+    ],
+    "ret": "无返回值，区间被就地重新排列。",
+    "notes": [
+      "平均与最坏都是 O(n log n)（最坏界 C++11 起）；不稳定排序",
+      "要求随机访问迭代器；std::list 用成员函数 sort",
+      "线程安全：否，同一区间不能并发修改"
+    ],
+    "pits": [
+      "比较器必须满足严格弱序：cmp(a,a) 恒为 false；误用 <= 或 >= 可能越界崩溃。",
+      "std::sort 不稳定：相等元素的相对顺序可能改变，需要稳定改用 stable_sort。",
+      "元素是指针时默认按地址比较，按指向内容排序必须自己传 comp。"
+    ],
+    "example": "std::vector<int> v{3, 1, 4, 1, 5};\nstd::sort(v.begin(), v.end());                    // 1 1 3 4 5\nstd::sort(v.begin(), v.end(), std::greater<int>{});  // 5 4 3 1 1",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/sort",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "stable_sort"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "稳定排序：相等元素的相对顺序保持不变。",
+    "sig": "template<class RandomIt>\nvoid stable_sort(RandomIt first, RandomIt last);\ntemplate<class RandomIt, class Compare>\nvoid stable_sort(RandomIt first, RandomIt last, Compare comp);",
+    "params": [
+      [
+        "first, last",
+        "要排序的随机访问迭代器区间"
+      ],
+      [
+        "comp",
+        "严格弱序比较器，默认用 <"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "O(n log n)；内存不足时退化为 O(n log^2 n)",
+      "比 sort 慢，通常额外申请 O(n) 内存",
+      "线程安全：否"
+    ],
+    "pits": [
+      "需要额外内存，分配失败会抛 std::bad_alloc。",
+      "比较器把相等元素判成不等时，稳定性也救不回逻辑错误。"
+    ],
+    "example": "std::vector<std::pair<int, char>> v{{1, 'a'}, {2, 'b'}, {1, 'c'}};\nstd::stable_sort(v.begin(), v.end(),\n                 [](auto& x, auto& y) { return x.first < y.first; });\n// 1a 1c 2b：两个 1 保持原来的先后",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/stable_sort",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "partial_sort"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "部分排序：只把最小的前 n 个元素排到区间开头。",
+    "sig": "template<class RandomIt>\nvoid partial_sort(RandomIt first, RandomIt middle, RandomIt last);\ntemplate<class RandomIt, class Compare>\nvoid partial_sort(RandomIt first, RandomIt middle, RandomIt last,\n                  Compare comp);",
+    "params": [
+      [
+        "first, middle",
+        "排好后 [first, middle) 是有序的最小元素"
+      ],
+      [
+        "last",
+        "整个输入区间的末尾"
+      ],
+      [
+        "comp",
+        "比较器，默认用 <"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "约 O(n log k)，k = middle - first",
+      "[middle, last) 内元素顺序未指定",
+      "线程安全：否"
+    ],
+    "pits": [
+      "只保证 [first, middle) 有序，后面那段别当已排序用。",
+      "只要前 k 个时比全量 sort 省时间，k 接近 n 时优势消失。"
+    ],
+    "example": "std::vector<int> v{5, 7, 4, 2, 8, 6, 1, 9, 0, 3};\nstd::partial_sort(v.begin(), v.begin() + 3, v.end());\n// v 的前三项是 0 1 2，其余顺序未指定",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/partial_sort",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "nth_element"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把第 n 小的元素放到第 n 个位置，左边都不大于它。",
+    "sig": "template<class RandomIt>\nvoid nth_element(RandomIt first, RandomIt nth, RandomIt last);\ntemplate<class RandomIt, class Compare>\nvoid nth_element(RandomIt first, RandomIt nth, RandomIt last, Compare comp);",
+    "params": [
+      [
+        "nth",
+        "排好后该位置的元素就是第 (nth-first+1) 小的元素"
+      ],
+      [
+        "comp",
+        "比较器，默认用 <"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "平均 O(n)；实现通常用内省选择（introselect）",
+      "只做分界，不整体排序；求中位数、第 k 大常用",
+      "线程安全：否"
+    ],
+    "pits": [
+      "nth 是迭代器不是下标：求第 k 小（从 1 数）传 begin() + k - 1。",
+      "左边都 <= 分界值、右边都 >=，但左右两侧各自无序，别指望顺序。"
+    ],
+    "example": "std::vector<int> v{9, 1, 8, 2, 7, 3};\nstd::nth_element(v.begin(), v.begin() + 2, v.end());\n// 下标 2 是 3（第 3 小），前面都 <= 3，后面都 >= 3",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/nth_element",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "is_sorted"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "判断区间是否已按升序（或 comp 规则）排好序。",
+    "sig": "template<class ForwardIt>\nbool is_sorted(ForwardIt first, ForwardIt last);\ntemplate<class ForwardIt, class Compare>\nbool is_sorted(ForwardIt first, ForwardIt last, Compare comp);",
+    "params": [
+      [
+        "first, last",
+        "要检查的区间，左闭右开"
+      ]
+    ],
+    "ret": "已排序（非降序）返回 true，否则 false；空区间返回 true。",
+    "notes": [
+      "O(n)，只比较相邻元素",
+      "C++11 起可用；判断的是非降序，{1,1,2} 也算有序",
+      "线程安全：只读，但区间被并发修改时行为未定义"
+    ],
+    "pits": [
+      "用 < 判升序，不是严格递增：相等元素不影响结果。",
+      "降序序列要传 std::greater<int>{}，用默认版本会判成无序。"
+    ],
+    "example": "std::vector<int> v{1, 2, 2, 3};\nbool up = std::is_sorted(v.begin(), v.end());                     // true\nbool down = std::is_sorted(v.begin(), v.end(), std::greater<int>{}); // false",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/is_sorted",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "find"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "在区间里找第一个等于给定值的元素。",
+    "sig": "template<class InputIt, class T>\nInputIt find(InputIt first, InputIt last, const T& value);",
+    "params": [
+      [
+        "first, last",
+        "查找区间，左闭右开"
+      ],
+      [
+        "value",
+        "要查找的值，用 operator== 比较"
+      ]
+    ],
+    "ret": "找到返回指向该元素的迭代器；找不到返回 last。",
+    "notes": [
+      "O(n) 线性扫描；有序数据找值用 binary_search 更快",
+      "比较用 ==，元素类型要有可用的 ==",
+      "线程安全：只读"
+    ],
+    "pits": [
+      "找不到返回 last，判断只能写 it != v.end()，不能先解引用再判。",
+      "在已排序容器上用 find 不利用有序性，仍是逐个比较。"
+    ],
+    "example": "std::vector<int> v{3, 1, 4, 1, 5};\nauto it = std::find(v.begin(), v.end(), 4);\nif (it != v.end())\n    std::cout << it - v.begin();   // 2",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/find",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "find_if"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "找第一个让谓词返回 true 的元素。",
+    "sig": "template<class InputIt, class UnaryPredicate>\nInputIt find_if(InputIt first, InputIt last, UnaryPredicate p);",
+    "params": [
+      [
+        "p",
+        "一元谓词：接收元素，返回 true 表示命中"
+      ]
+    ],
+    "ret": "找到返回迭代器；否则返回 last。",
+    "notes": [
+      "O(n)，找到即停",
+      "C++11 起还有 find_if_not 找第一个不满足的",
+      "谓词可直接传 lambda"
+    ],
+    "pits": [
+      "谓词里不能通过迭代器修改元素，标准禁止这样用。",
+      "谓词按值传入并拷贝，捕获方式按需选值捕获或引用捕获。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4};\nauto it = std::find_if(v.begin(), v.end(),\n                       [](int x) { return x % 2 == 0; });\n// it 指向 2",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/find_if",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "find_first_of"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "在第一个区间里找第一个也出现在第二个区间中的元素。",
+    "sig": "template<class ForwardIt1, class ForwardIt2>\nForwardIt1 find_first_of(ForwardIt1 first, ForwardIt1 last,\n                         ForwardIt2 s_first, ForwardIt2 s_last);",
+    "params": [
+      [
+        "first, last",
+        "被搜索的区间"
+      ],
+      [
+        "s_first, s_last",
+        "候选元素集合"
+      ]
+    ],
+    "ret": "找到返回指向第一个区间中命中元素的迭代器；候选集为空时返回 last。",
+    "notes": [
+      "最坏 O(N*M)，N、M 是两个区间的长度",
+      "元素用 == 比较",
+      "C++98 起就能传二元谓词自定义「相等」"
+    ],
+    "pits": [
+      "返回的是第一个区间里的元素，不是按候选集的顺序。",
+      "候选集为空时直接返回 last，循环别假设一定找到。"
+    ],
+    "example": "std::string s = \"hello world\";\nstd::string vowels = \"aeiou\";\nauto it = std::find_first_of(s.begin(), s.end(),\n                             vowels.begin(), vowels.end());\n// it 指向第一个元音 'e'",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/find_first_of",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "count"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "统计区间里等于给定值的元素个数。",
+    "sig": "template<class InputIt, class T>\ntypename std::iterator_traits<InputIt>::difference_type\ncount(InputIt first, InputIt last, const T& value);",
+    "params": [
+      [
+        "value",
+        "要计数的值，用 == 比较"
+      ]
+    ],
+    "ret": "等于 value 的元素个数，类型是 difference_type（有符号）。",
+    "notes": [
+      "O(n)",
+      "返回有符号类型，和 size_t 比较会有符号警告",
+      "只计数不定位；要位置用 find"
+    ],
+    "pits": [
+      "返回 difference_type 不是 size_t，混比会出 -Wsign-compare 警告。",
+      "浮点用 == 统计容易因精度问题失效，先定义容差比较。"
+    ],
+    "example": "std::vector<int> v{1, 2, 2, 3, 2};\nauto n = std::count(v.begin(), v.end(), 2);   // 3",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/count",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "count_if"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "统计区间里满足谓词的元素个数。",
+    "sig": "template<class InputIt, class UnaryPredicate>\ntypename std::iterator_traits<InputIt>::difference_type\ncount_if(InputIt first, InputIt last, UnaryPredicate p);",
+    "params": [
+      [
+        "p",
+        "一元谓词，返回 true 计入"
+      ]
+    ],
+    "ret": "满足 p 的元素个数，类型是 difference_type。",
+    "notes": [
+      "O(n)",
+      "谓词只读，不能改元素",
+      "返回有符号类型，用 int 接超大容器会溢出"
+    ],
+    "pits": [
+      "谓词返回值要能转 bool，别返回奇怪类型。",
+      "用 int 接计数结果，元素数超过 int 上限时溢出。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4, 5, 6};\nauto evens = std::count_if(v.begin(), v.end(),\n                           [](int x) { return x % 2 == 0; });  // 3",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/count_if",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "all_of"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "判断区间内是否所有元素都满足谓词。",
+    "sig": "template<class InputIt, class UnaryPredicate>\nbool all_of(InputIt first, InputIt last, UnaryPredicate p);",
+    "params": [
+      [
+        "p",
+        "一元谓词"
+      ]
+    ],
+    "ret": "全部满足返回 true；空区间也返回 true。",
+    "notes": [
+      "O(n)，遇到第一个不满足立即返回 false",
+      "C++11 起可用；与 any_of / none_of 成套",
+      "线程安全：只读"
+    ],
+    "pits": [
+      "空区间返回 true（空真），别把「没元素」当成检查通过。",
+      "逻辑是「对所有 x，p(x)」：判断「存在不满足」要写 !all_of。"
+    ],
+    "example": "std::vector<int> v{2, 4, 6};\nbool even = std::all_of(v.begin(), v.end(),\n                        [](int x) { return x % 2 == 0; });  // true",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/all_any_none_of",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "any_of"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "判断区间内是否存在至少一个满足谓词的元素。",
+    "sig": "template<class InputIt, class UnaryPredicate>\nbool any_of(InputIt first, InputIt last, UnaryPredicate p);",
+    "params": [
+      [
+        "p",
+        "一元谓词"
+      ]
+    ],
+    "ret": "存在返回 true；空区间返回 false。",
+    "notes": [
+      "O(n)，找到第一个立即返回 true",
+      "C++11 起可用",
+      "线程安全：只读"
+    ],
+    "pits": [
+      "空区间返回 false（空假），和 all_of 相反。",
+      "any_of(p) 等价于 !none_of(p)，和 !all_of(p) 不是一回事。"
+    ],
+    "example": "std::vector<int> v{1, 3, 4};\nbool has = std::any_of(v.begin(), v.end(),\n                       [](int x) { return x % 2 == 0; });  // true",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/all_any_none_of",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "none_of"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "判断区间内是否没有任何元素满足谓词。",
+    "sig": "template<class InputIt, class UnaryPredicate>\nbool none_of(InputIt first, InputIt last, UnaryPredicate p);",
+    "params": [
+      [
+        "p",
+        "一元谓词"
+      ]
+    ],
+    "ret": "一个满足的都没有返回 true；空区间返回 true。",
+    "notes": [
+      "等价于 !any_of(p)，O(n)",
+      "C++11 起可用",
+      "线程安全：只读"
+    ],
+    "pits": [
+      "空区间返回 true，不能当作「检查过且干净」的证据。",
+      "none_of(p) 与 all_of(取反 p) 等价，选一个别混着用。"
+    ],
+    "example": "std::vector<int> v{1, 3, 5};\nbool no = std::none_of(v.begin(), v.end(),\n                       [](int x) { return x % 2 == 0; });  // true",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/all_any_none_of",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "accumulate"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把区间元素依次累加（或按二元运算合并）到初值上。",
+    "sig": "template<class InputIt, class T>\nT accumulate(InputIt first, InputIt last, T init);\ntemplate<class InputIt, class T, class BinaryOperation>\nT accumulate(InputIt first, InputIt last, T init, BinaryOperation op);",
+    "params": [
+      [
+        "init",
+        "累加的初始值，它的类型决定返回类型"
+      ],
+      [
+        "op",
+        "二元运算 op(累加和, 当前元素)，默认是加法"
+      ]
+    ],
+    "ret": "累加结果，类型与 init 相同。",
+    "notes": [
+      "O(n)；头文件是 <numeric> 不是 <algorithm>",
+      "T 由 init 推导：传 0 会把 double 结果截断成 int",
+      "线程安全：只读"
+    ],
+    "pits": [
+      "std::accumulate(v.begin(), v.end(), 0) 累加 double 会截断，初值写 0.0。",
+      "字符串拼接别从空字符串字面量起手：类型会推成 const char*，做的是指针运算。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4};\nint sum = std::accumulate(v.begin(), v.end(), 0);          // 10\nint prod = std::accumulate(v.begin(), v.end(), 1,\n                           [](int a, int b) { return a * b; }); // 24\nstd::vector<double> d{1.5, 2.5};\ndouble total = std::accumulate(d.begin(), d.end(), 0.0);   // 4，初值不能写 0",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/accumulate",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "transform"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "对每个元素做映射（一元），或合并两个区间（二元），结果写到目标。",
+    "sig": "template<class InputIt, class OutputIt, class UnaryOperation>\nOutputIt transform(InputIt first, InputIt last, OutputIt d_first,\n                   UnaryOperation unary_op);\ntemplate<class InputIt1, class InputIt2, class OutputIt, class BinaryOperation>\nOutputIt transform(InputIt1 first1, InputIt1 last1, InputIt2 first2,\n                   OutputIt d_first, BinaryOperation binary_op);",
+    "params": [
+      [
+        "d_first",
+        "输出区间起点，可以与输入区间相同（就地变换）"
+      ],
+      [
+        "unary_op / binary_op",
+        "映射函数；二元版对两个区间的对应元素调用"
+      ]
+    ],
+    "ret": "指向输出区间末尾之后的迭代器。",
+    "notes": [
+      "O(n)；配 back_inserter 可直接往空容器追加",
+      "二元版把两个区间的对应元素交给 binary_op",
+      "C++17 起有并行重载"
+    ],
+    "pits": [
+      "用 back_inserter 前目标容器先 clear，否则在旧内容后面追加。",
+      "二元版只按第一个区间长度结束，第二个区间不够长会越界。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nstd::vector<int> out;\nstd::transform(v.begin(), v.end(), std::back_inserter(out),\n               [](int x) { return x * x; });   // out = {1, 4, 9}",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/transform",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "for_each"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "对区间每个元素依次调用一个函数，常用于遍历副作用。",
+    "sig": "template<class InputIt, class UnaryFunction>\nUnaryFunction for_each(InputIt first, InputIt last, UnaryFunction f);",
+    "params": [
+      [
+        "f",
+        "对每个元素调用的函数，形参通常是元素引用"
+      ]
+    ],
+    "ret": "返回函数对象的副本；C++17 并行重载返回 void。",
+    "notes": [
+      "O(n)；纯遍历用 range-for 更直观，需要算法语义才用它",
+      "C++17 并行重载要求 f 无数据竞争且不抛异常",
+      "函数按值传入并拷贝"
+    ],
+    "pits": [
+      "f 的形参写 int 而不是 int& 就是改副本，改不到容器。",
+      "函数对象内部状态在传参时已拷贝，外面的累加变量看不到，要用返回值接住。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nstd::for_each(v.begin(), v.end(), [](int& x) { x *= 2; });\nfor (int x : v) std::cout << x << ' ';   // 2 4 6",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/for_each",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "reverse"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "就地反转区间内元素的顺序。",
+    "sig": "template<class BidirIt>\nvoid reverse(BidirIt first, BidirIt last);",
+    "params": [
+      [
+        "first, last",
+        "要反转的双向迭代器区间"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "O(n)，需双向迭代器；forward_list 不能用",
+      "就地交换，size 不变",
+      "要反转后的副本用 reverse_copy"
+    ],
+    "pits": [
+      "reverse 就地改容器；想保留原序列先拷贝一份。",
+      "反转后迭代器仍指向同一位置，但元素已换，缓存的下标要重算。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4};\nstd::reverse(v.begin(), v.end());   // 4 3 2 1\nstd::string s = \"abc\";\nstd::reverse(s.begin(), s.end());   // cba",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/reverse",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "rotate"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把区间循环左移，使 middle 处的元素成为新的首元素。",
+    "sig": "template<class ForwardIt>\nForwardIt rotate(ForwardIt first, ForwardIt middle, ForwardIt last);",
+    "params": [
+      [
+        "first, middle, last",
+        "旋转后 middle 处的元素成为区间第一个"
+      ]
+    ],
+    "ret": "返回原 first 元素的新位置（first + (last - middle)）；C++11 前返回 void。",
+    "notes": [
+      "O(n)，只需前向迭代器",
+      "middle 等于 first 或 last 时什么也不做",
+      "就地旋转，不需要额外内存"
+    ],
+    "pits": [
+      "middle 必须落在 [first, last] 内，越界是未定义行为。",
+      "返回值是新位置不是元素值，常用来接「原第一段」的起点。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4, 5};\nauto it = std::rotate(v.begin(), v.begin() + 2, v.end());\n// v = {3, 4, 5, 1, 2}，it 指向元素 1",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/rotate",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "unique"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "去除相邻的重复元素，把不重复的挪到区间前部。",
+    "sig": "template<class ForwardIt>\nForwardIt unique(ForwardIt first, ForwardIt last);\ntemplate<class ForwardIt, class BinaryPredicate>\nForwardIt unique(ForwardIt first, ForwardIt last, BinaryPredicate p);",
+    "params": [
+      [
+        "p",
+        "判断两元素「相等」的谓词，默认用 =="
+      ]
+    ],
+    "ret": "返回新逻辑尾部的迭代器，[返回值, last) 的内容未指定。",
+    "notes": [
+      "只去相邻重复，全局去重要先排序",
+      "O(n)；不改变容器 size",
+      "保留每个相等组里的第一个，其余被后续元素覆盖"
+    ],
+    "pits": [
+      "unique 不删元素也不改 size，必须配 erase 才是真删除。",
+      "未排序容器上调用只去掉连续重复，{1,2,1} 还是三段。"
+    ],
+    "example": "std::vector<int> v{1, 1, 2, 2, 3};\nauto it = std::unique(v.begin(), v.end());\nv.erase(it, v.end());              // v = {1, 2, 3}",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/unique",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "remove"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把不等于给定值的元素前移，返回新的逻辑尾。",
+    "sig": "template<class ForwardIt, class T>\nForwardIt remove(ForwardIt first, ForwardIt last, const T& value);",
+    "params": [
+      [
+        "value",
+        "要移除的值：相等的元素被搬到区间后部"
+      ]
+    ],
+    "ret": "新的逻辑尾迭代器，[返回值, last) 的内容未指定。",
+    "notes": [
+      "O(n)；只搬不移，size 不变",
+      "真删除配 erase：v.erase(std::remove(...), v.end())",
+      "list 有成员函数 remove，会真删节点"
+    ],
+    "pits": [
+      "只调 remove 不 erase，元素还在、size 也没变。",
+      "算法本身不失效迭代器，但随后的 erase 会让被删位置之后的迭代器失效。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 1, 4};\nv.erase(std::remove(v.begin(), v.end(), 1), v.end());\n// v = {2, 3, 4}",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/remove",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "remove_if"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把满足谓词的元素前移，返回新的逻辑尾。",
+    "sig": "template<class ForwardIt, class UnaryPredicate>\nForwardIt remove_if(ForwardIt first, ForwardIt last, UnaryPredicate p);",
+    "params": [
+      [
+        "p",
+        "一元谓词，返回 true 的元素被移到后面"
+      ]
+    ],
+    "ret": "新的逻辑尾迭代器。",
+    "notes": [
+      "O(n)；同样只搬不删，要配 erase",
+      "谓词对每个元素恰好调用一次",
+      "list 有成员函数 remove_if"
+    ],
+    "pits": [
+      "不 erase 时 size 不变，判断逻辑长度要用返回值。",
+      "先 remove_if 再按 size 遍历会读到尾部未指定的残留值。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4, 5, 6};\nv.erase(std::remove_if(v.begin(), v.end(),\n                       [](int x) { return x % 2 == 0; }),\n        v.end());                     // v = {1, 3, 5}",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/remove",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "fill"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把区间内所有元素赋成同一个值。",
+    "sig": "template<class ForwardIt, class T>\nvoid fill(ForwardIt first, ForwardIt last, const T& value);",
+    "params": [
+      [
+        "value",
+        "要赋给每个元素的值"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "O(n)，需前向迭代器",
+      "只改已有元素，不会扩容",
+      "要加元素先 resize，或用 fill_n 配 back_inserter"
+    ],
+    "pits": [
+      "对空 vector 直接 fill 什么也不做，元素不会被创建。",
+      "fill 是赋值不是构造，元素类型要支持拷贝赋值。"
+    ],
+    "example": "std::vector<int> v(5);\nstd::fill(v.begin(), v.end(), 7);          // 7 7 7 7 7\nstd::fill(v.begin(), v.begin() + 2, 0);    // 0 0 7 7 7",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/fill",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "fill_n"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "从起点开始把连续 n 个元素赋成同一个值。",
+    "sig": "template<class OutputIt, class Size, class T>\nOutputIt fill_n(OutputIt first, Size count, const T& value);",
+    "params": [
+      [
+        "count",
+        "要填充的个数，0 时什么也不做"
+      ]
+    ],
+    "ret": "指向最后一个被赋值元素之后的迭代器（C++11 起）。",
+    "notes": [
+      "O(count)；不检查目标空间长度",
+      "C++11 前返回 void",
+      "配 back_inserter 可安全追加"
+    ],
+    "pits": [
+      "count 超过容器剩余可写空间会直接越界写，不报错。",
+      "对 vector 用前先 resize，写 size 之外是未定义行为。"
+    ],
+    "example": "std::vector<int> v(6, 1);\nstd::fill_n(v.begin() + 2, 3, 9);              // 1 1 9 9 9 1\nstd::vector<int> out;\nstd::fill_n(std::back_inserter(out), 4, 0);    // out = {0, 0, 0, 0}",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/fill_n",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "copy"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把区间元素逐个拷贝到目标起点。",
+    "sig": "template<class InputIt, class OutputIt>\nOutputIt copy(InputIt first, InputIt last, OutputIt d_first);",
+    "params": [
+      [
+        "d_first",
+        "目标区间起点，不能落在源区间内部"
+      ]
+    ],
+    "ret": "指向目标区间末尾之后的迭代器。",
+    "notes": [
+      "O(n)；目标空间要提前备好",
+      "追加到容器用 back_inserter",
+      "C++17 起有并行重载"
+    ],
+    "pits": [
+      "目标落在源区间内部时用 copy 会覆盖未读元素，改 copy_backward。",
+      "目标 vector 为空还直接传 begin()，写入即越界。"
+    ],
+    "example": "std::vector<int> src{1, 2, 3};\nstd::vector<int> dst(src.size());\nstd::copy(src.begin(), src.end(), dst.begin());\n// dst = {1, 2, 3}",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/copy",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "copy_if"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "只拷贝满足谓词的元素到目标区间。",
+    "sig": "template<class InputIt, class OutputIt, class UnaryPredicate>\nOutputIt copy_if(InputIt first, InputIt last, OutputIt d_first,\n                 UnaryPredicate pred);",
+    "params": [
+      [
+        "pred",
+        "只拷贝返回 true 的元素"
+      ]
+    ],
+    "ret": "目标区间新的末尾迭代器。",
+    "notes": [
+      "O(n)；C++11 起可用",
+      "保持源元素相对顺序",
+      "通常配 back_inserter"
+    ],
+    "pits": [
+      "C++98 没有 copy_if，老代码用 remove_copy_if 取反谓词代替。",
+      "目标容器预先分配大小时，实际写入个数用返回值的下标减起点。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4, 5, 6};\nstd::vector<int> evens;\nstd::copy_if(v.begin(), v.end(), std::back_inserter(evens),\n             [](int x) { return x % 2 == 0; });   // {2, 4, 6}",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/copy_if",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "lower_bound"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "在有序区间里找第一个不小于给定值的位置。",
+    "sig": "template<class ForwardIt, class T>\nForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value);\ntemplate<class ForwardIt, class T, class Compare>\nForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value,\n                      Compare comp);",
+    "params": [
+      [
+        "value",
+        "要找的目标值"
+      ],
+      [
+        "comp",
+        "和排序时一致的比较器"
+      ]
+    ],
+    "ret": "第一个满足 *it >= value 的迭代器；都小于 value 时返回 last。",
+    "notes": [
+      "比较次数 O(log n)；非随机访问迭代器另加线性移动",
+      "区间必须已按同一规则升序排好",
+      "返回值可直接当插入点送给 insert"
+    ],
+    "pits": [
+      "区间没排序时结果无意义，可能给错位置也不一定返回 last。",
+      "lower_bound 是第一个 >=，要「第一个 >」用 upper_bound，差一就错。",
+      "用自定义比较器排序后，lower_bound 必须传同一个比较器。"
+    ],
+    "example": "std::vector<int> v{1, 3, 3, 5};\nauto lo = std::lower_bound(v.begin(), v.end(), 3);  // 指向第一个 3\nauto up = std::upper_bound(v.begin(), v.end(), 3);  // 指向 5\n// 3 的个数 = up - lo = 2",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/lower_bound",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "upper_bound"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "在有序区间里找第一个严格大于给定值的位置。",
+    "sig": "template<class ForwardIt, class T>\nForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& value);\ntemplate<class ForwardIt, class T, class Compare>\nForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& value,\n                      Compare comp);",
+    "params": [
+      [
+        "value",
+        "要找的目标值"
+      ],
+      [
+        "comp",
+        "和排序时一致的比较器"
+      ]
+    ],
+    "ret": "第一个满足 *it > value 的迭代器；没有则返回 last。",
+    "notes": [
+      "进阶：比较次数 O(log n)",
+      "与 lower_bound 配对可求相等元素范围",
+      "equal_range 等价于同时取两者"
+    ],
+    "pits": [
+      "upper_bound 是第一个严格大于，别当成「最后一个小于等于」再减错。",
+      "区间必须有序，比较器要和排序时一致。"
+    ],
+    "example": "std::vector<int> v{1, 2, 2, 2, 4};\nauto it = std::upper_bound(v.begin(), v.end(), 2);\n// 指向 4，下标 4",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/upper_bound",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "binary_search"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "判断有序区间里是否存在给定值。",
+    "sig": "template<class ForwardIt, class T>\nbool binary_search(ForwardIt first, ForwardIt last, const T& value);",
+    "params": [
+      [
+        "value",
+        "要找的值"
+      ]
+    ],
+    "ret": "存在返回 true，否则 false。",
+    "notes": [
+      "O(log n) 次比较；只回答有没有",
+      "区间必须已排序",
+      "要位置用 lower_bound / equal_range"
+    ],
+    "pits": [
+      "未排序区间上调用结果不可靠，错不在编译期而在运行期。",
+      "binary_search 不返回位置，再 find 一次是 O(n)，直接用 lower_bound。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 5, 8};\nbool has = std::binary_search(v.begin(), v.end(), 5);  // true\nbool no = std::binary_search(v.begin(), v.end(), 4);   // false",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/binary_search",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "equal_range"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "在有序区间里一次取回等于给定值的元素范围。",
+    "sig": "template<class ForwardIt, class T>\nstd::pair<ForwardIt, ForwardIt>\nequal_range(ForwardIt first, ForwardIt last, const T& value);",
+    "params": [
+      [
+        "value",
+        "要找的目标值"
+      ]
+    ],
+    "ret": "pair：first 是第一个 >= value，second 是第一个 > value。",
+    "notes": [
+      "等价于 {lower_bound, upper_bound} 但只遍历一次",
+      "比较次数 O(log n)；区间需已排序",
+      "结果范围是左闭右开 [first, second)"
+    ],
+    "pits": [
+      "返回的是迭代器对，取值要写 *r.first。",
+      "没有该元素时 r.first == r.second，用它判存在性。"
+    ],
+    "example": "std::vector<int> v{1, 2, 2, 2, 5};\nauto r = std::equal_range(v.begin(), v.end(), 2);\nint n = std::distance(r.first, r.second);   // 3",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/equal_range",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "includes"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "判断一个有序区间是否包含另一个有序区间的全部元素。",
+    "sig": "template<class InputIt1, class InputIt2>\nbool includes(InputIt1 first1, InputIt1 last1,\n              InputIt2 first2, InputIt2 last2);",
+    "params": [
+      [
+        "first1, last1",
+        "大集合，必须已排序"
+      ],
+      [
+        "first2, last2",
+        "要找的小集合，必须已排序"
+      ]
+    ],
+    "ret": "第二个区间每个元素都能在第一个区间里找到则返回 true。",
+    "notes": [
+      "O(N+M)，两区间都必须有序",
+      "按多重集语义：重复个数也要对得上",
+      "线程安全：只读"
+    ],
+    "pits": [
+      "只排了一个区间结果就是错的，两边都要先 sort。",
+      "小集合里某值出现两次、大集合只有一次时返回 false。"
+    ],
+    "example": "std::vector<int> big{1, 2, 3, 4, 5};\nstd::vector<int> sub{2, 4};\nbool ok = std::includes(big.begin(), big.end(),\n                        sub.begin(), sub.end());   // true",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/includes",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "merge"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把两个有序区间归并成一个有序区间写到目标。",
+    "sig": "template<class InputIt1, class InputIt2, class OutputIt>\nOutputIt merge(InputIt1 first1, InputIt1 last1,\n               InputIt2 first2, InputIt2 last2, OutputIt d_first);",
+    "params": [
+      [
+        "d_first",
+        "输出起点，要留够两段元素之和的空间"
+      ]
+    ],
+    "ret": "输出区间末尾之后的迭代器。",
+    "notes": [
+      "O(N+M)；稳定，相等元素先取第一段",
+      "两个输入都必须已排序",
+      "同一个容器内就地合合用 inplace_merge"
+    ],
+    "pits": [
+      "输出空间不够会越界写，先 resize 或用 back_inserter。",
+      "输入没排序时 merge 出的结果不有序。"
+    ],
+    "example": "std::vector<int> a{1, 3, 5}, b{2, 4, 6};\nstd::vector<int> out;\nstd::merge(a.begin(), a.end(), b.begin(), b.end(),\n           std::back_inserter(out));   // {1, 2, 3, 4, 5, 6}",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/merge",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "min"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "返回两个值中较小的那个。",
+    "sig": "template<class T>\nconst T& min(const T& a, const T& b);\ntemplate<class T, class Compare>\nconst T& min(const T& a, const T& b, Compare comp);\ntemplate<class T>\nT min(std::initializer_list<T> ilist);   // C++11",
+    "params": [
+      [
+        "a, b",
+        "要比较的两个值，类型必须相同"
+      ],
+      [
+        "comp",
+        "比较器：comp(a,b) 为 true 表示 a 小于 b"
+      ]
+    ],
+    "ret": "较小值的 const 引用；相等时返回 a；初始化列表版本按值返回最小值。",
+    "notes": [
+      "O(1)；<algorithm> 头文件",
+      "返回引用，别绑到临时对象上",
+      "线程安全：只读传参"
+    ],
+    "pits": [
+      "min(1, 2.0) 类型不一致编译不过，要写 min<double>(1, 2.0)。",
+      "auto& r = min(f(), g()) 拿到的是悬空引用，接临时值用 auto 存值。"
+    ],
+    "example": "int a = 3, b = 5;\nconst int& m = std::min(a, b);              // m == 3\nstd::cout << std::min({4, 2, 8});           // 2",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/min",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "max"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "返回两个值中较大的那个。",
+    "sig": "template<class T>\nconst T& max(const T& a, const T& b);\ntemplate<class T, class Compare>\nconst T& max(const T& a, const T& b, Compare comp);\ntemplate<class T>\nT max(std::initializer_list<T> ilist);   // C++11",
+    "params": [
+      [
+        "a, b",
+        "要比较的两个值，类型必须相同"
+      ],
+      [
+        "comp",
+        "比较器：comp(a,b) 为 true 表示 a 小于 b"
+      ]
+    ],
+    "ret": "较大值的 const 引用；相等时返回 a；初始化列表版本按值返回最大值。",
+    "notes": [
+      "O(1)",
+      "返回引用，临时对象会悬空",
+      "初始化列表版本返回最大值副本"
+    ],
+    "pits": [
+      "max(a, b) 两参数类型必须一致，混 int 和 double 编译失败。",
+      "auto& r = max(1, 2) 绑的是临时量，之后再用是未定义行为。"
+    ],
+    "example": "int a = 3, b = 5;\nconst int& m = std::max(a, b);              // m == 5\nstd::cout << std::max({4, 2, 8});           // 8",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/max",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "minmax"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "一次返回两个值中的较小者和较大者。",
+    "sig": "template<class T>\nstd::pair<const T&, const T&> minmax(const T& a, const T& b);\ntemplate<class T>\nstd::pair<T, T> minmax(std::initializer_list<T> ilist);   // C++11",
+    "params": [
+      [
+        "a, b",
+        "要比较的两个值，类型必须相同"
+      ]
+    ],
+    "ret": "pair：first 是较小值，second 是较大值。",
+    "notes": [
+      "C++11 起可用；比分别调 min / max 少一次比较",
+      "两参数版返回 pair<const T&, const T&>",
+      "C++17 起支持结构化绑定接住"
+    ],
+    "pits": [
+      "auto p = std::minmax(1, 2) 里存的是临时对象的引用，p 之后悬空。",
+      "两参数版返回引用对，初始化列表版返回值对，类型不同别写死 auto&。"
+    ],
+    "example": "int a = 3, b = 5;\nauto [lo, hi] = std::minmax(a, b);    // lo=3, hi=5\nauto p = std::minmax({4, 2, 8});      // p.first=2, p.second=8",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/minmax",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "clamp"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把值限制在 [lo, hi] 区间内，超界就取边界。",
+    "sig": "template<class T>\nconst T& clamp(const T& v, const T& lo, const T& hi);\ntemplate<class T, class Compare>\nconst T& clamp(const T& v, const T& lo, const T& hi, Compare comp);",
+    "params": [
+      [
+        "v",
+        "要被限制的值"
+      ],
+      [
+        "lo, hi",
+        "下界和上界，调用方保证 lo <= hi"
+      ]
+    ],
+    "ret": "v 在 [lo, hi] 内返回 v 的引用，否则返回对应边界值。",
+    "notes": [
+      "C++17 起可用；<algorithm> 头文件",
+      "参数顺序是 (值, 下界, 上界)",
+      "返回引用，传临时值注意悬空"
+    ],
+    "pits": [
+      "lo > hi 是前置条件违反，未定义行为，不会帮你交换。",
+      "clamp(5, 0, 10u) 类型不一致编译不过，显式写 clamp<int>。"
+    ],
+    "example": "std::cout << std::clamp(15, 0, 10);    // 10\nstd::cout << std::clamp(-3, 0, 10);    // 0\nstd::cout << std::clamp(5, 0, 10);     // 5",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/clamp",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "max_element"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "返回区间内最大元素的第一个位置的迭代器。",
+    "sig": "template<class ForwardIt>\nForwardIt max_element(ForwardIt first, ForwardIt last);\ntemplate<class ForwardIt, class Compare>\nForwardIt max_element(ForwardIt first, ForwardIt last, Compare comp);",
+    "params": [
+      [
+        "comp",
+        "比较器，默认用 <"
+      ]
+    ],
+    "ret": "最大值第一次出现的位置；空区间返回 last。",
+    "notes": [
+      "O(n)；要位置用它，要值用 *it 或 std::max",
+      "并列最大时返回第一个",
+      "C++11 起 minmax_element 可一次取两个"
+    ],
+    "pits": [
+      "空区间返回 last，直接解引用是未定义行为。",
+      "返回的是迭代器不是值，取值得加 *。"
+    ],
+    "example": "std::vector<int> v{3, 9, 2, 9};\nauto it = std::max_element(v.begin(), v.end());\nstd::cout << *it << \" 下标 \" << (it - v.begin());   // 9 下标 1",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/max_element",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "min_element"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "返回区间内最小元素的第一个位置的迭代器。",
+    "sig": "template<class ForwardIt>\nForwardIt min_element(ForwardIt first, ForwardIt last);\ntemplate<class ForwardIt, class Compare>\nForwardIt min_element(ForwardIt first, ForwardIt last, Compare comp);",
+    "params": [
+      [
+        "comp",
+        "比较器，默认用 <"
+      ]
+    ],
+    "ret": "最小值第一次出现的位置；空区间返回 last。",
+    "notes": [
+      "O(n)",
+      "并列最小时返回第一个",
+      "要同时取最值用 minmax_element"
+    ],
+    "pits": [
+      "空区间返回 last，解引用前先判 it != v.end()。",
+      "返回迭代器不是值，写 int m = *std::min_element(...) 别漏星号。"
+    ],
+    "example": "std::vector<int> v{3, 9, 2};\nauto it = std::min_element(v.begin(), v.end());\nstd::cout << *it;   // 2",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/min_element",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "minmax_element"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "一次遍历同时取最小和最大元素的位置。",
+    "sig": "template<class ForwardIt>\nstd::pair<ForwardIt, ForwardIt>\nminmax_element(ForwardIt first, ForwardIt last);",
+    "params": [
+      [
+        "comp",
+        "比较器，默认用 <"
+      ]
+    ],
+    "ret": "pair<最小位置, 最大位置>；空区间返回 {last, last}。",
+    "notes": [
+      "最多约 3(n-1)/2 次比较，比各查一次少",
+      "C++11 起可用",
+      "并列时最小取第一个、最大取最后一个"
+    ],
+    "pits": [
+      "pair 里是迭代器，取值要写 *p.first / *p.second。",
+      "最大元素并列时返回最后一个，和 max_element 不同。"
+    ],
+    "example": "std::vector<int> v{3, 9, 2, 9};\nauto [lo, hi] = std::minmax_element(v.begin(), v.end());\n// *lo == 2，*hi 指向最后一个 9",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/minmax_element",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "next_permutation"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把区间变成按字典序的下一个排列；已最大则回到最小。",
+    "sig": "template<class BidirIt>\nbool next_permutation(BidirIt first, BidirIt last);\ntemplate<class BidirIt, class Compare>\nbool next_permutation(BidirIt first, BidirIt last, Compare comp);",
+    "params": [
+      [
+        "comp",
+        "比较器，默认用 <"
+      ]
+    ],
+    "ret": "存在下一个排列返回 true；否则把区间重置成升序最小排列并返回 false。",
+    "notes": [
+      "枚举全部排列平均每步 O(1)，总量 n! 级",
+      "区间先升序才是从第一个排列开始",
+      "需双向迭代器，元素要能比较"
+    ],
+    "pits": [
+      "没先排序就调用会漏掉当前排列之前的全部排列。",
+      "返回 false 的那次已经把区间改回最小排列，别再拿去用。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\ndo {\n    for (int x : v) std::cout << x;\n    std::cout << ' ';\n} while (std::next_permutation(v.begin(), v.end()));\n// 123 132 213 231 312 321",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/next_permutation",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "prev_permutation"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "把区间变成按字典序的上一个排列；已最小则回到最大。",
+    "sig": "template<class BidirIt>\nbool prev_permutation(BidirIt first, BidirIt last);\ntemplate<class BidirIt, class Compare>\nbool prev_permutation(BidirIt first, BidirIt last, Compare comp);",
+    "params": [
+      [
+        "comp",
+        "比较器，默认用 <"
+      ]
+    ],
+    "ret": "存在上一个排列返回 true；否则把区间重置成降序最大排列并返回 false。",
+    "notes": [
+      "与 next_permutation 方向相反",
+      "枚举上一个排列时区间要先降序排好",
+      "重复元素只产生不重复的排列"
+    ],
+    "pits": [
+      "没先降序会漏掉比当前大的排列。",
+      "返回 false 后区间变成最大排列，循环条件写错会死循环。"
+    ],
+    "example": "std::vector<int> v{3, 2, 1};\ndo {\n    for (int x : v) std::cout << x;\n    std::cout << ' ';\n} while (std::prev_permutation(v.begin(), v.end()));\n// 321 312 231 213 132 123",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/prev_permutation",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "iota"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "用从指定值开始逐个递增的序列填充区间。",
+    "sig": "template<class ForwardIt, class T>\nvoid iota(ForwardIt first, ForwardIt last, T value);",
+    "params": [
+      [
+        "value",
+        "第一个元素的值，之后每个递增 1"
+      ]
+    ],
+    "ret": "无返回值。",
+    "notes": [
+      "O(n)；头文件是 <numeric>",
+      "C++11 起可用；常配 shuffle 生成索引数组",
+      "元素类型要支持 ++"
+    ],
+    "pits": [
+      "用 ++ 递增，自定义类型必须定义 operator++。",
+      "只填已有元素不扩容，vector 先 resize。"
+    ],
+    "example": "std::vector<int> v(5);\nstd::iota(v.begin(), v.end(), 1);   // 1 2 3 4 5",
+    "link": "https://en.cppreference.com/w/cpp/algorithm/iota",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "gcd"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "求两个整数的最大公约数。",
+    "sig": "template<class M, class N>\nstd::common_type_t<M, N> gcd(M m, N n);",
+    "params": [
+      [
+        "m, n",
+        "两个整数，都为 0 时返回 0"
+      ]
+    ],
+    "ret": "最大公约数，类型是两参数的公共类型；gcd(0,0) 为 0。",
+    "notes": [
+      "C++17 起可用，头文件 <numeric>",
+      "按绝对值计算，结果非负",
+      "欧几里得算法，O(log min(m,n))"
+    ],
+    "pits": [
+      "参数必须是整数类型，传浮点编译不过。",
+      "结果是公共类型：gcd(INT_MIN, 0) 的绝对值不可表示，行为未定义。"
+    ],
+    "example": "int a = std::gcd(12, 18);       // 6\nint b = std::gcd(0, 7);         // 7\nlong c = std::gcd(10L, 25);     // 5，类型是 long",
+    "link": "https://en.cppreference.com/w/cpp/numeric/gcd",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "lcm"
+    ],
+    "scope": "算法",
+    "kind": "函数",
+    "brief": "求两个整数的最小公倍数。",
+    "sig": "template<class M, class N>\nstd::common_type_t<M, N> lcm(M m, N n);",
+    "params": [
+      [
+        "m, n",
+        "两个整数，任一为 0 时返回 0"
+      ]
+    ],
+    "ret": "最小公倍数，结果非负；任一参数为 0 时返回 0。",
+    "notes": [
+      "C++17 起可用，头文件 <numeric>",
+      "实现通常先除后乘避免中间溢出",
+      "参数为 0 时结果固定 0"
+    ],
+    "pits": [
+      "大数组合可能溢出：lcm(INT_MAX, INT_MAX-1) 超出 int 是未定义行为。",
+      "两个参数都是 0 时结果是 0，不是错误。"
+    ],
+    "example": "int a = std::lcm(4, 6);      // 12\nint b = std::lcm(0, 5);      // 0",
+    "link": "https://en.cppreference.com/w/cpp/numeric/lcm",
+    "since": "C++17"
+  },
+  {
+    "keys": [
+      "greater"
+    ],
+    "scope": "函数对象",
+    "kind": "类",
+    "brief": "大于比较的函数对象，用于降序排序和小顶堆。",
+    "sig": "template<class T = void>\nstruct greater {\n    bool operator()(const T& lhs, const T& rhs) const;\n};   // C++14 起 T 可省略，得到透明比较器 greater<>",
+    "params": [
+      [
+        "T",
+        "要比较的元素类型，C++14 起可省略为 void"
+      ],
+      [
+        "lhs, rhs",
+        "operator() 的两个操作数"
+      ]
+    ],
+    "ret": "operator() 返回 lhs > rhs 的 bool 结果。",
+    "notes": [
+      "<functional> 头文件",
+      "配 sort 得降序，配 priority_queue 默认是最小堆",
+      "greater<> 是透明版本，可比较不同类型"
+    ],
+    "pits": [
+      "传的是类型不是对象：sort(v.begin(), v.end(), std::greater<int>{})，括号别漏。",
+      "priority_queue<int, vector<int>, greater<int>> 是最小堆，方向别想反。"
+    ],
+    "example": "std::vector<int> v{3, 1, 4};\nstd::sort(v.begin(), v.end(), std::greater<int>{});\n// v = {4, 3, 1}\nstd::priority_queue<int, std::vector<int>, std::greater<int>> pq;",
+    "link": "https://en.cppreference.com/w/cpp/utility/functional/greater",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "less"
+    ],
+    "scope": "函数对象",
+    "kind": "类",
+    "brief": "小于比较的函数对象，标准容器的默认比较规则。",
+    "sig": "template<class T = void>\nstruct less {\n    bool operator()(const T& lhs, const T& rhs) const;\n};   // C++14 起 T 可省略，得到透明比较器 less<>",
+    "params": [
+      [
+        "T",
+        "要比较的元素类型，C++14 起可省略为 void"
+      ],
+      [
+        "lhs, rhs",
+        "operator() 的两个操作数"
+      ]
+    ],
+    "ret": "operator() 返回 lhs < rhs 的 bool 结果。",
+    "notes": [
+      "<functional> 头文件",
+      "std::map / std::set 的默认比较器就是 std::less<Key>",
+      "less<> 可透明比较不同类型"
+    ],
+    "pits": [
+      "需要严格弱序：默认 less 用 < 没问题，自定义比较器别用 <=。",
+      "自定义 key 要能 < 比较，否则 map 编译失败。"
+    ],
+    "example": "std::vector<int> v{3, 1, 4};\nstd::sort(v.begin(), v.end(), std::less<int>{});\n// v = {1, 3, 4}\nstd::set<int, std::less<int>> s{3, 1, 4};",
+    "link": "https://en.cppreference.com/w/cpp/utility/functional/less",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "function"
+    ],
+    "scope": "函数对象",
+    "kind": "类",
+    "brief": "可调用对象的通用类型擦除包装，能存函数指针、lambda、bind 结果。",
+    "sig": "template<class R, class... Args>\nclass function<R(Args...)>;   // 参数是目标可调用对象的签名",
+    "params": [
+      [
+        "R(Args...)",
+        "目标可调用对象的返回类型与参数类型"
+      ],
+      [
+        "f",
+        "构造时传入的可调用对象，可以为空"
+      ]
+    ],
+    "ret": "调用 operator() 返回目标可调用对象的结果；空 function 调用抛异常。",
+    "notes": [
+      "<functional>；C++11 起可用",
+      "空 function 调用 operator() 抛 std::bad_function_call",
+      "可拷贝可赋值，捕获较大时可能堆分配"
+    ],
+    "pits": [
+      "默认构造的 std::function 是空的，调用前要判 if (fn)，否则抛 bad_function_call。",
+      "存进 function 的 lambda 若捕获引用，外部对象销毁后调用即悬空。"
+    ],
+    "example": "std::function<int(int, int)> add = [](int a, int b) { return a + b; };\nstd::cout << add(2, 3);   // 5\nstd::function<int(int)> f;   // 空\nif (f) f(1);                  // 条件不满足，不执行",
+    "link": "https://en.cppreference.com/w/cpp/utility/functional/function",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "bind"
+    ],
+    "scope": "函数对象",
+    "kind": "函数",
+    "brief": "把可调用对象和部分实参绑成一个新的可调用对象。",
+    "sig": "template<class F, class... Args>\n/* 未指定类型 */ bind(F&& f, Args&&... args);",
+    "params": [
+      [
+        "f",
+        "被绑定的可调用对象，成员函数传成员指针"
+      ],
+      [
+        "args",
+        "绑定的实参；std::placeholders::_1 等作为占位符"
+      ]
+    ],
+    "ret": "返回一个未指定类型的可调用对象（C++20 起标准规定了类型）。",
+    "notes": [
+      "<functional>；C++11 起可用",
+      "占位符在 std::placeholders 命名空间",
+      "C++14 起多数场景可用 lambda 代替，可读性更好"
+    ],
+    "pits": [
+      "绑定实参默认按值拷贝，要改原变量必须写 std::ref(x)。",
+      "绑定成员函数要写成 bind(&Class::func, &obj, 参数...)，对象指针别漏。"
+    ],
+    "example": "using namespace std::placeholders;\nauto add = [](int a, int b) { return a + b; };\nauto add10 = std::bind(add, 10, _1);\nstd::cout << add10(5);   // 15",
+    "link": "https://en.cppreference.com/w/cpp/utility/functional/bind",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "ref"
+    ],
+    "scope": "函数对象",
+    "kind": "函数",
+    "brief": "把变量包装成 reference_wrapper，让模板按引用保存。",
+    "sig": "template<class T>\nstd::reference_wrapper<T> ref(T& t) noexcept;   // C++11",
+    "params": [
+      [
+        "t",
+        "要引用的左值变量"
+      ]
+    ],
+    "ret": "返回 reference_wrapper<T>，可隐式转换回 T&。",
+    "notes": [
+      "<functional>；C++11 起可用",
+      "常配 bind、function、thread、容器使用",
+      "reference_wrapper 可拷贝，但都指向同一个对象"
+    ],
+    "pits": [
+      "std::ref 只能接左值，传临时对象或字面量编译报错。",
+      "不延长生命周期：被引用对象先销毁，包装器再用就是未定义行为。"
+    ],
+    "example": "int x = 1;\nauto r = std::ref(x);\nr.get() = 42;\nstd::cout << x;   // 42",
+    "link": "https://en.cppreference.com/w/cpp/utility/functional/ref",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "cref"
+    ],
+    "scope": "函数对象",
+    "kind": "函数",
+    "brief": "把变量包装成只读的 reference_wrapper<const T>。",
+    "sig": "template<class T>\nstd::reference_wrapper<const T> cref(const T& t) noexcept;   // C++11",
+    "params": [
+      [
+        "t",
+        "要只读引用的变量，可以是 const 或非 const"
+      ]
+    ],
+    "ret": "返回 reference_wrapper<const T>，转回后是 const T&。",
+    "notes": [
+      "<functional>；C++11 起可用",
+      "ref 的只读版本，防止通过包装器修改原对象",
+      "常配 bind 传大对象避免拷贝"
+    ],
+    "pits": [
+      "cref 之后不能通过 get() 改值，需要修改用 ref。",
+      "和 ref 一样不延长生命周期，对象销毁后用就悬空。"
+    ],
+    "example": "std::string s = \"hello\";\nauto r = std::cref(s);\nstd::cout << r.get().size();   // 5\n// r.get() = \"x\";              // 编译错误：只读",
+    "link": "https://en.cppreference.com/w/cpp/utility/functional/ref",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "hash"
+    ],
+    "scope": "函数对象",
+    "kind": "类",
+    "brief": "标准哈希函数对象，无序容器默认用它算元素的哈希值。",
+    "sig": "template<class Key>\nstruct hash;   // 基本类型、std::string、std::string_view 等有特化",
+    "params": [
+      [
+        "Key",
+        "要哈希的类型，需要存在 std::hash<Key> 的特化"
+      ]
+    ],
+    "ret": "operator() 返回 size_t 类型的哈希值。",
+    "notes": [
+      "<functional>；无序容器（unordered_map 等）默认使用",
+      "自定义类型必须自己特化 std::hash 才能进无序容器",
+      "相等的元素必须得到相同的哈希值"
+    ],
+    "pits": [
+      "自定义类型不特化 std::hash 就放进 unordered_map，编译期报无可用特化。",
+      "特化时哈希函数和 operator== 的相等语义必须一致，否则元素查不到。"
+    ],
+    "example": "std::hash<std::string> h;\nstd::cout << h(\"hello\");   // 数值由实现决定\nstd::unordered_map<std::string, int> m;   // 默认用 std::hash<std::string>",
+    "link": "https://en.cppreference.com/w/cpp/utility/functional/hash",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "advance"
+    ],
+    "scope": "迭代器",
+    "kind": "函数",
+    "brief": "把迭代器就地前进（或后退）n 步。",
+    "sig": "template<class InputIt, class Distance>\nvoid advance(InputIt& it, Distance n);",
+    "params": [
+      [
+        "it",
+        "被修改的迭代器，按引用传入"
+      ],
+      [
+        "n",
+        "步数；双向及以上迭代器可传负值"
+      ]
+    ],
+    "ret": "无返回值，直接修改 it 本身。",
+    "notes": [
+      "<iterator>；随机访问迭代器 O(1)，其余 O(n)",
+      "传负值要求双向迭代器",
+      "不检查越界，终点有效性由调用方保证"
+    ],
+    "pits": [
+      "对前向迭代器传负值是未定义行为，forward_list 只能用非负数。",
+      "advance 原地改 it，不会返回新迭代器。"
+    ],
+    "example": "std::vector<int> v{10, 20, 30, 40};\nauto it = v.begin();\nstd::advance(it, 2);\nstd::cout << *it;   // 30",
+    "link": "https://en.cppreference.com/w/cpp/iterator/advance",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "next"
+    ],
+    "scope": "迭代器",
+    "kind": "函数",
+    "brief": "返回迭代器前进 n 步后的副本，不修改原迭代器。",
+    "sig": "template<class ForwardIt>\nForwardIt next(ForwardIt it,\n    typename std::iterator_traits<ForwardIt>::difference_type n = 1);",
+    "params": [
+      [
+        "it",
+        "原迭代器，按值传入"
+      ],
+      [
+        "n",
+        "步数，默认 1；双向及以上迭代器可为负"
+      ]
+    ],
+    "ret": "前进 n 步后的新迭代器。",
+    "notes": [
+      "<iterator>；C++11 起可用",
+      "不修改传入的迭代器，适合链式写法",
+      "随机访问迭代器直接写 it + n 更直白"
+    ],
+    "pits": [
+      "返回的是副本：next(it) 不改变 it 的值。",
+      "越界不检查，走到 end() 之后解引用是未定义行为。"
+    ],
+    "example": "std::list<int> l{1, 2, 3, 4};\nauto it = l.begin();\nauto it2 = std::next(it);      // 指向 2，it 仍指向 1\nauto it3 = std::next(it, 2);   // 指向 3",
+    "link": "https://en.cppreference.com/w/cpp/iterator/next",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "prev"
+    ],
+    "scope": "迭代器",
+    "kind": "函数",
+    "brief": "返回迭代器后退 n 步后的副本，常用 prev(end()) 取末元素。",
+    "sig": "template<class BidirIt>\nBidirIt prev(BidirIt it,\n    typename std::iterator_traits<BidirIt>::difference_type n = 1);",
+    "params": [
+      [
+        "it",
+        "原迭代器，按值传入"
+      ],
+      [
+        "n",
+        "后退步数，默认 1"
+      ]
+    ],
+    "ret": "后退 n 步后的新迭代器。",
+    "notes": [
+      "<iterator>；C++11 起可用，需要双向迭代器",
+      "std::prev(v.end()) 是最后一个元素",
+      "原地后退用 advance(it, -n)"
+    ],
+    "pits": [
+      "对 begin() 用 prev 会走到区间外，标准允许但不该解引用。",
+      "forward_list 只有单向迭代器，不能用 prev。"
+    ],
+    "example": "std::vector<int> v{10, 20, 30};\nauto last = std::prev(v.end());\nstd::cout << *last;   // 30",
+    "link": "https://en.cppreference.com/w/cpp/iterator/prev",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "distance"
+    ],
+    "scope": "迭代器",
+    "kind": "函数",
+    "brief": "求两个迭代器之间的元素个数。",
+    "sig": "template<class InputIt>\ntypename std::iterator_traits<InputIt>::difference_type\ndistance(InputIt first, InputIt last);",
+    "params": [
+      [
+        "first, last",
+        "同一区间的起点与终点，左闭右开"
+      ]
+    ],
+    "ret": "区间元素个数，类型是 difference_type（有符号）。",
+    "notes": [
+      "<iterator>；随机访问迭代器 O(1)，其余 O(n)",
+      "返回有符号类型，赋给 size_t 会有转换警告",
+      "C++11 起也可用于 const 迭代器"
+    ],
+    "pits": [
+      "对 input 迭代器是 O(n) 且会推进副本，别以为所有容器都 O(1)。",
+      "last 必须与 first 同属一个容器，跨容器相减是未定义行为。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3, 4};\nauto n = std::distance(v.begin(), v.end());   // 4\nstd::list<int> l{1, 2, 3};\nauto m = std::distance(l.begin(), l.end());   // 3，O(n)",
+    "link": "https://en.cppreference.com/w/cpp/iterator/distance",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "back_inserter"
+    ],
+    "scope": "迭代器",
+    "kind": "函数",
+    "brief": "生成插入迭代器，赋值时在容器尾部追加元素。",
+    "sig": "template<class Container>\nstd::back_insert_iterator<Container> back_inserter(Container& c);",
+    "params": [
+      [
+        "c",
+        "支持 push_back 的容器"
+      ]
+    ],
+    "ret": "back_insert_iterator，对它赋值等价于 c.push_back(value)。",
+    "notes": [
+      "<iterator>；配 copy / transform / fill_n 往空容器追加",
+      "自动扩容，不会越界写",
+      "vector、deque、list、string 都支持"
+    ],
+    "pits": [
+      "目标容器已有内容时是在后面追加，需要覆盖就先 clear。",
+      "std::array 和 C 数组没有 push_back，不能用。"
+    ],
+    "example": "std::vector<int> src{1, 2, 3};\nstd::vector<int> dst;\nstd::copy(src.begin(), src.end(), std::back_inserter(dst));\n// dst = {1, 2, 3}",
+    "link": "https://en.cppreference.com/w/cpp/iterator/back_inserter",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "front_inserter"
+    ],
+    "scope": "迭代器",
+    "kind": "函数",
+    "brief": "生成插入迭代器，赋值时在容器头部插入，结果顺序会反转。",
+    "sig": "template<class Container>\nstd::front_insert_iterator<Container> front_inserter(Container& c);",
+    "params": [
+      [
+        "c",
+        "支持 push_front 的容器"
+      ]
+    ],
+    "ret": "front_insert_iterator，对它赋值等价于 c.push_front(value)。",
+    "notes": [
+      "<iterator>；要求容器有 push_front",
+      "连续插入后元素顺序与源区间相反",
+      "vector、string 不支持"
+    ],
+    "pits": [
+      "vector 没有 push_front，用了直接编译失败。",
+      "每插一个都放头部，结果顺序是反的，要正序得再 reverse。"
+    ],
+    "example": "std::list<int> src{1, 2, 3};\nstd::list<int> dst;\nstd::copy(src.begin(), src.end(), std::front_inserter(dst));\n// dst = {3, 2, 1}",
+    "link": "https://en.cppreference.com/w/cpp/iterator/front_inserter",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "inserter"
+    ],
+    "scope": "迭代器",
+    "kind": "函数",
+    "brief": "生成插入迭代器，赋值时在容器指定位置之前插入元素。",
+    "sig": "template<class Container>\nstd::insert_iterator<Container> inserter(Container& c,\n    typename Container::iterator it);",
+    "params": [
+      [
+        "c",
+        "目标容器"
+      ],
+      [
+        "it",
+        "插入位置，新元素插在它前面"
+      ]
+    ],
+    "ret": "insert_iterator，每次赋值调用 c.insert(it, value) 并推进 it。",
+    "notes": [
+      "<iterator>；适用于有 insert 的容器",
+      "vector 中间插入是 O(n)，批量插入很慢",
+      "算法本身不失效迭代器，但 insert 可能让 vector 迭代器失效"
+    ],
+    "pits": [
+      "外部另存的插入位置迭代器在插入后可能失效，别用旧值。",
+      "往 map 插入时元素要写 pair，只给 key 编译不过。"
+    ],
+    "example": "std::vector<int> v{1, 2, 4};\nstd::vector<int> add{9};\nstd::copy(add.begin(), add.end(), std::inserter(v, v.begin() + 2));\n// v = {1, 2, 9, 4}",
+    "link": "https://en.cppreference.com/w/cpp/iterator/inserter",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "iterator"
+    ],
+    "scope": "迭代器",
+    "kind": "类型",
+    "brief": "迭代器分类概念：输入、前向、双向、随机访问、连续。",
+    "sig": "template<class Category, class T, class Distance = std::ptrdiff_t,\n         class Pointer = T*, class Reference = T&>\nstruct iterator;   // C++17 起弃用，C++20 移除",
+    "params": [
+      [
+        "Category",
+        "迭代器类别标签，如 std::random_access_iterator_tag"
+      ],
+      [
+        "T",
+        "元素类型，决定 value_type"
+      ]
+    ],
+    "ret": "基类不提供任何行为，只声明关联类型的别名。",
+    "notes": [
+      "<iterator>；类别决定算法能否使用（如 sort 要随机访问）",
+      "C++17 起 std::iterator 已弃用，别再继承它",
+      "现代写法直接在自己的迭代器里定义五个成员类型"
+    ],
+    "pits": [
+      "C++17 用 std::iterator 会有弃用警告，C++20 起编译直接失败。",
+      "它和 std::iterator_traits 不是一回事：一个是基类，一个是萃取。"
+    ],
+    "example": "std::vector<int> v{1, 2};\nauto it = v.begin();\nusing cat = std::iterator_traits<decltype(it)>::iterator_category;\nstatic_assert(std::is_same_v<cat, std::random_access_iterator_tag>);",
+    "link": "https://en.cppreference.com/w/cpp/iterator/iterator",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "iterator_traits"
+    ],
+    "scope": "迭代器",
+    "kind": "类型",
+    "brief": "迭代器萃取结构体，统一取出迭代器的五类关联类型。",
+    "sig": "template<class Iter>\nstruct iterator_traits {\n    using difference_type   = typename Iter::difference_type;\n    using value_type        = typename Iter::value_type;\n    using pointer           = typename Iter::pointer;\n    using reference         = typename Iter::reference;\n    using iterator_category = typename Iter::iterator_category;\n};",
+    "params": [
+      [
+        "Iter",
+        "迭代器类型；普通指针也有特化"
+      ]
+    ],
+    "ret": "本身是类型萃取结构体，通过 ::value_type 等成员类型使用。",
+    "notes": [
+      "<iterator>；标准算法靠它推导元素类型",
+      "C++20 起另有 iterator_concept，iter_value_t 更方便",
+      "自定义迭代器要实现五个成员类型才能配算法"
+    ],
+    "pits": [
+      "模板里必须写 typename std::iterator_traits<It>::value_type，typename 漏了编译失败。",
+      "自定义迭代器漏定义 iterator_category 时算法会选错重载。"
+    ],
+    "example": "template<class It>\nvoid show(It) {\n    using T = typename std::iterator_traits<It>::value_type;\n    std::cout << sizeof(T);\n}\nshow(std::vector<int>::iterator{});   // 打印 int 的大小",
+    "link": "https://en.cppreference.com/w/cpp/iterator/iterator_traits",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "is_same"
+    ],
+    "scope": "类型萃取",
+    "kind": "类型",
+    "brief": "判断两个类型是否完全相同，const 和引用也算差异。",
+    "sig": "template<class T, class U>\nstruct is_same;\n\ntemplate<class T, class U>\ninline constexpr bool is_same_v = is_same<T, U>::value;   // C++17",
+    "params": [
+      [
+        "T, U",
+        "要比较的两个类型"
+      ]
+    ],
+    "ret": "通过 ::value（bool）或 C++17 的 is_same_v 取结果。",
+    "notes": [
+      "<type_traits>；编译期求值",
+      "int 与 const int、int& 都算不同类型",
+      "C++17 起提供 _v 变量模板"
+    ],
+    "pits": [
+      "想做「本质相同」判断时先 decay 或 remove_cv，别直接用 is_same。",
+      "编译期常量不能当运行期分支用，if 两个分支都必须能编译。"
+    ],
+    "example": "static_assert(std::is_same_v<int, int>);\nstatic_assert(!std::is_same_v<int, const int>);\nstatic_assert(!std::is_same_v<int, long>);",
+    "link": "https://en.cppreference.com/w/cpp/types/is_same",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "enable_if"
+    ],
+    "scope": "类型萃取",
+    "kind": "类型",
+    "brief": "按编译期条件启用或禁用函数模板重载（SFINAE）。",
+    "sig": "template<bool B, class T = void>\nstruct enable_if {};                       // B 为 false 时没有 ::type\n\ntemplate<class T>\nstruct enable_if<true, T> { using type = T; };\n\ntemplate<bool B, class T = void>\nusing enable_if_t = typename enable_if<B, T>::type;",
+    "params": [
+      [
+        "B",
+        "编译期布尔条件"
+      ],
+      [
+        "T",
+        "条件成立时暴露的 type，默认 void"
+      ]
+    ],
+    "ret": "条件成立时提供 ::type / enable_if_t；条件不成立时替换失败。",
+    "notes": [
+      "<type_traits>；C++11 起可用",
+      "常见写法：返回值写 enable_if_t<is_integral_v<T>, T>",
+      "C++20 起多数场景改用 requires 约束"
+    ],
+    "pits": [
+      "条件不成立时必须是替换失败而不是硬错误，只能用在函数签名里。",
+      "条件依赖模板参数才叫 SFINAE，写进函数体就变成编译错误。"
+    ],
+    "example": "template<class T,\n         class = std::enable_if_t<std::is_integral_v<T>>>\nT twice(T x) { return x * 2; }\n\nstd::cout << twice(21);   // 42\n// twice(1.5);            // 编译错误：不满足 is_integral",
+    "link": "https://en.cppreference.com/w/cpp/types/enable_if",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "decay"
+    ],
+    "scope": "类型萃取",
+    "kind": "类型",
+    "brief": "把类型退化成按值传递后的形态：去引用、去 cv、数组转指针。",
+    "sig": "template<class T>\nstruct decay;\n\ntemplate<class T>\nusing decay_t = typename decay<T>::type;   // C++14",
+    "params": [
+      [
+        "T",
+        "要退化的类型"
+      ]
+    ],
+    "ret": "::type / decay_t 得到退化后的类型。",
+    "notes": [
+      "<type_traits>；C++11 起可用",
+      "int& 变 int，const int 变 int，int[3] 变 int*",
+      "函数类型退化成函数指针"
+    ],
+    "pits": [
+      "decay 会丢掉 const 和引用，想保留就用 remove_reference。",
+      "数组退化后 sizeof 变化，别拿 decay_t 去算数组长度。"
+    ],
+    "example": "static_assert(std::is_same_v<std::decay_t<int&>, int>);\nstatic_assert(std::is_same_v<std::decay_t<const int>, int>);\nstatic_assert(std::is_same_v<std::decay_t<int[3]>, int*>);",
+    "link": "https://en.cppreference.com/w/cpp/types/decay",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "remove_reference"
+    ],
+    "scope": "类型萃取",
+    "kind": "类型",
+    "brief": "去掉类型上的引用，const 等其余部分保留。",
+    "sig": "template<class T>\nstruct remove_reference;\n\ntemplate<class T>\nusing remove_reference_t = typename remove_reference<T>::type;   // C++14",
+    "params": [
+      [
+        "T",
+        "要处理的类型"
+      ]
+    ],
+    "ret": "::type / remove_reference_t 为去掉引用后的类型。",
+    "notes": [
+      "<type_traits>；C++11 起可用",
+      "左值引用与右值引用都会去掉",
+      "常配 std::forward 写完美转发"
+    ],
+    "pits": [
+      "只去引用不去 const：remove_reference_t<const int&> 仍是 const int。",
+      "模板里写 typename std::remove_reference<T>::type，typename 不能漏。"
+    ],
+    "example": "static_assert(std::is_same_v<std::remove_reference_t<int&>, int>);\nstatic_assert(std::is_same_v<std::remove_reference_t<int&&>, int>);\nstatic_assert(std::is_same_v<std::remove_reference_t<const int&>, const int>);",
+    "link": "https://en.cppreference.com/w/cpp/types/remove_reference",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "remove_cv"
+    ],
+    "scope": "类型萃取",
+    "kind": "类型",
+    "brief": "去掉类型顶层的 const 和 volatile 限定符。",
+    "sig": "template<class T>\nstruct remove_cv;\n\ntemplate<class T>\nusing remove_cv_t = typename remove_cv<T>::type;   // C++14",
+    "params": [
+      [
+        "T",
+        "要处理的类型"
+      ]
+    ],
+    "ret": "::type / remove_cv_t 为去掉 cv 限定后的类型。",
+    "notes": [
+      "<type_traits>；C++11 起可用",
+      "const 和 volatile 会一起去掉",
+      "不处理引用和指针指向的类型"
+    ],
+    "pits": [
+      "remove_cv 对 const int& 无效，引用上的 const 要先 remove_reference。",
+      "volatile 也被去掉，写寄存器映射代码时别误用。"
+    ],
+    "example": "static_assert(std::is_same_v<std::remove_cv_t<const int>, int>);\nstatic_assert(std::is_same_v<std::remove_cv_t<volatile int>, int>);\nstatic_assert(std::is_same_v<std::remove_cv_t<const volatile int>, int>);",
+    "link": "https://en.cppreference.com/w/cpp/types/remove_cv",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "is_integral"
+    ],
+    "scope": "类型萃取",
+    "kind": "类型",
+    "brief": "判断类型是否为整数类型（含 bool 和 char）。",
+    "sig": "template<class T>\nstruct is_integral;\n\ntemplate<class T>\ninline constexpr bool is_integral_v = is_integral<T>::value;   // C++17",
+    "params": [
+      [
+        "T",
+        "要检查的类型"
+      ]
+    ],
+    "ret": "整数类型返回 true；浮点、枚举、类类型、引用返回 false。",
+    "notes": [
+      "<type_traits>；编译期求值",
+      "bool、char、short、int、long 及其无符号版本都算整数",
+      "C++17 起用 is_integral_v"
+    ],
+    "pits": [
+      "bool 也算整数类型，写数值重载时可能多接一个 bool。",
+      "枚举类型返回 false，要判断枚举用 is_enum。"
+    ],
+    "example": "static_assert(std::is_integral_v<int>);\nstatic_assert(std::is_integral_v<bool>);\nstatic_assert(!std::is_integral_v<double>);\nstatic_assert(!std::is_integral_v<int&>);   // 引用不是整数类型",
+    "link": "https://en.cppreference.com/w/cpp/types/is_integral",
+    "since": "C++11"
+  }
+]

@@ -1,0 +1,1845 @@
+[
+  {
+    "keys": [
+      "const"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "声明不可修改的值；成员函数尾部加 const 表示不改变对象状态。",
+    "notes": [
+      "const 只保证不能通过该名字修改，编译期检查；不能当线程安全用。",
+      "const 成员函数里 this 类型是 const T*，只能调用其他 const 成员函数。",
+      "const int* 与 int* const 位置不同含义相反，前者指向常量，后者指针本身常量。"
+    ],
+    "pits": [
+      "const 变量被 const_cast 去掉 const 后修改是未定义行为。",
+      "定义成 const 的对象可能被放进只读段，运行期写会崩。"
+    ],
+    "example": "const int maxCount = 10;\nint value = 3;\nconst int* p = &value;   // 不能改 *p\nint* const q = &value;   // 不能改 q 的指向",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/cv"
+  },
+  {
+    "keys": [
+      "constexpr"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "让变量或函数在编译期求值；比 const 强，可用于数组长度和模板参数。",
+    "notes": [
+      "const 只表示只读，constexpr 要求编译期可计算。",
+      "constexpr 函数在运行期用普通参数调用也合法，不强制编译期。",
+      "C++14 起函数体里可有循环和局部变量，C++11 只允许一条 return。"
+    ],
+    "pits": [
+      "想让 constexpr 变量真的编译期求值，初始化式必须全是常量表达式。",
+      "C++11 的 constexpr 成员函数隐含 const，C++14 才取消。"
+    ],
+    "example": "constexpr int square(int x) { return x * x; }\nint arr[square(3)];   // 长度在编译期确定",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/constexpr"
+  },
+  {
+    "keys": [
+      "static"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "控制存储期与链接：函数内静态变量只初始化一次，类静态成员属于类，全局 static 只在本文件可见。",
+    "notes": [
+      "函数内 static 变量首次执行到声明时初始化，C++11 起这个初始化是线程安全的。",
+      "类静态数据成员 C++17 起可写 inline static 在类内直接定义。",
+      "静态成员函数没有 this，不能访问非静态成员。"
+    ],
+    "pits": [
+      "多翻译单元里同名全局 static 各有独立副本，改一处不影响另一处。",
+      "把静态成员函数的定义写成普通成员函数会报没有 this 的错误。"
+    ],
+    "example": "int& counter() {\n  static int n = 0;\n  return ++n;\n}",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/storage_duration"
+  },
+  {
+    "keys": [
+      "static_cast"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "带编译期检查的显式转换：数值互转、void* 转回对象指针、有继承关系的指针上下转换。",
+    "notes": [
+      "只在相关类型间合法，指针向下转型不做运行期检查。",
+      "枚举与整数互转、void* 与对象指针互转都用它。",
+      "比 C 风格强制转换更安全，容易被看到。"
+    ],
+    "pits": [
+      "基类指针用 static_cast 转派生类不做检查，转错是未定义行为，多态场景用 dynamic_cast。",
+      "它不能去掉 const，那是 const_cast 的活。"
+    ],
+    "example": "double d = 3.9;\nint i = static_cast<int>(d);   // 3，截断不是四舍五入",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/static_cast"
+  },
+  {
+    "keys": [
+      "dynamic_cast"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "运行期检查的多态类型转换，指针失败返回 nullptr，引用失败抛 bad_cast。",
+    "notes": [
+      "源类型必须至少有一个虚函数，否则编译不过。",
+      "运行期有开销，频繁使用通常说明设计可以改。",
+      "向上转型用不到它，直接 static_cast 或隐式转换。"
+    ],
+    "pits": [
+      "转非多态类型是编译错误，不是返回空指针。",
+      "引用形式失败抛 std::bad_cast，不接住会异常逃逸。"
+    ],
+    "example": "struct Base { virtual ~Base() = default; };\nstruct Derived : Base { int v = 1; };\nBase* b = new Derived;\nDerived* d = dynamic_cast<Derived*>(b);   // 成功，失败返回 nullptr",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/dynamic_cast"
+  },
+  {
+    "keys": [
+      "const_cast"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "只增删 const 或 volatile 限定，不改变类型；常用来适配不改参数的老接口。",
+    "notes": [
+      "唯一能去掉 const 的转换。",
+      "去 const 后若只读不写通常安全；写对象本身是 const 的就未定义。"
+    ],
+    "pits": [
+      "修改本来定义成 const 的对象是未定义行为。",
+      "把 const 数据传给会写它的函数，运行期可能段错误。"
+    ],
+    "example": "void legacy(char* s);\nconst char* msg = getMsg();\nlegacy(const_cast<char*>(msg));   // 只传不改才安全",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/const_cast"
+  },
+  {
+    "keys": [
+      "reinterpret_cast"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "按位重新解释，不做任何检查；用于指针与整数、无关指针类型之间互转。",
+    "notes": [
+      "结果依赖平台和编译器，可移植性最差。",
+      "与 uintptr_t 互转、把整数地址当指针用是常见合法用途。"
+    ],
+    "pits": [
+      "把 int* 转成 float* 再解引用违反严格别名，结果是未定义行为。",
+      "64 位平台把指针塞进 32 位整数会截断。"
+    ],
+    "example": "int value = 42;\nauto addr = reinterpret_cast<uintptr_t>(&value);\nauto back = reinterpret_cast<int*>(addr);   // 转回原类型才安全",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/reinterpret_cast"
+  },
+  {
+    "keys": [
+      "virtual"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "声明虚函数，通过基类指针或引用调用时按实际对象类型分派，也就是动态绑定。",
+    "notes": [
+      "有虚函数的类才有虚表，每个对象多一个隐藏指针。",
+      "基类析构函数必须 virtual，否则 delete 基类指针不调用派生析构。",
+      "override 和 final 只检查覆盖关系，不改变虚性。"
+    ],
+    "pits": [
+      "构造函数和析构函数里调用虚函数不会分派到派生类。",
+      "忘写 virtual 析构，派生类里 new 出来的资源不会释放。"
+    ],
+    "example": "struct Base {\n  virtual ~Base() = default;\n  virtual void run() { }\n};",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/virtual"
+  },
+  {
+    "keys": [
+      "override"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "显式声明本函数覆盖基类虚函数，签名写错直接编译报错。",
+    "notes": [
+      "只在编译期检查，不生成代码、不影响运行期性能。",
+      "写在本函数声明的末尾，缺 const 或 noexcept 都会报错。"
+    ],
+    "pits": [
+      "漏写 override 且签名差一点（少 const），函数就变成隐藏而不是覆盖，运行时调错。",
+      "没覆盖任何虚函数却写 override，直接编译错误。"
+    ],
+    "example": "struct Base { virtual void f(int) const; };\nstruct D : Base {\n  void f(int) const override;   // 签名必须完全一致\n};",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/override"
+  },
+  {
+    "keys": [
+      "final"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "禁止继续派生该类或禁止覆盖该虚函数，让编译器守住继承边界。",
+    "notes": [
+      "写在类名后表示类不能被继承，写在函数参数表后表示不能被覆盖。",
+      "只做编译期检查，有时能帮编译器去虚化。"
+    ],
+    "pits": [
+      "对非虚函数写 final 是编译错误。",
+      "把 final 加在基类上会让想继承的同事直接收到编译错误，不是运行期问题。"
+    ],
+    "example": "struct Base {\n  virtual void f();\n};\nstruct D final : Base {\n  void f() final;\n};",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/final"
+  },
+  {
+    "keys": [
+      "explicit"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "禁止单参构造函数的隐式转换，避免实参被悄悄构造成临时对象。",
+    "notes": [
+      "用于构造函数，C++11 起也可用于转换运算符。",
+      "写 explicit 后 bool b = obj; 这类隐式转换失效；if (obj)、!obj 属语境转换，仍可用。"
+    ],
+    "pits": [
+      "漏写 explicit 时函数实参被隐式构造，调用点看不出发生了转换。",
+      "给多参构造加 explicit 不影响正常初始化，只是禁用列表初始化的隐式转换。"
+    ],
+    "example": "struct Buffer {\n  explicit Buffer(int n);\n};\nvoid use(Buffer b);\nuse(10);          // 错误：不能隐式构造\nuse(Buffer(10));  // 正确",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/explicit"
+  },
+  {
+    "keys": [
+      "mutable"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "允许 const 成员函数修改该成员，用于缓存、计数等逻辑上不改变对象状态的字段。",
+    "notes": [
+      "只对非静态数据成员有效。",
+      "典型用途是缓存和互斥量成员，让 const 函数也能加锁。"
+    ],
+    "pits": [
+      "滥用 mutable 会破坏 const 语义，对外承诺只读却偷偷改状态。",
+      "mutable 也能加在 lambda 参数表后，表示可修改按值捕获的变量，是另一个用法。"
+    ],
+    "example": "struct Cache {\n  mutable int hits = 0;\n  int get() const { return ++hits; }   // const 函数里也能改\n};",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/cv"
+  },
+  {
+    "keys": [
+      "inline"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "建议编译器把函数内联展开；现代编译器只把它当提示，真正内联自己决定。",
+    "notes": [
+      "inline 函数允许多个翻译单元有定义，头文件里定义普通函数必须用它。",
+      "类内定义的成员函数隐含 inline。"
+    ],
+    "pits": [
+      "头文件里定义非 inline 的普通函数，多文件包含后链接报重复定义。",
+      "inline 不等于一定展开，也不保证更快。"
+    ],
+    "example": "// header.h\ninline int add(int a, int b) { return a + b; }",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/inline"
+  },
+  {
+    "keys": [
+      "noexcept"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "声明函数不抛异常；真抛了会直接 std::terminate，同时影响容器的移动选择。",
+    "notes": [
+      "是承诺不是检查，函数体里 throw 会编译通过但运行时终止。",
+      "移动构造和移动赋值标 noexcept，vector 扩容才会选择移动。"
+    ],
+    "pits": [
+      "给可能抛异常的移动构造标 noexcept，异常时直接崩，不会退回复制。",
+      "noexcept 说明符和 noexcept 运算符是两回事，后者求表达式是否不抛。"
+    ],
+    "example": "void mayThrow() noexcept(false);\nvoid neverThrow() noexcept;\nstruct D { ~D() noexcept; };",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/noexcept"
+  },
+  {
+    "keys": [
+      "volatile"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "告诉编译器该对象可能被外部改变，禁止优化掉对它的读写；不解决线程同步。",
+    "notes": [
+      "用于内存映射寄存器、信号处理共享变量。",
+      "volatile 不提供原子性和内存序，多线程共享数据要用 std::atomic。"
+    ],
+    "pits": [
+      "把 volatile 当线程同步用会出现丢更新和重排。",
+      "volatile 并不保证每次访问真读内存，只限制编译器优化。"
+    ],
+    "example": "volatile int* reg = reinterpret_cast<volatile int*>(0x40000000);\n*reg = 1;   // 编译器不会优化掉这次写",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/cv"
+  },
+  {
+    "keys": [
+      "auto"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "由初始化表达式推导变量类型，省掉冗长类型名。",
+    "notes": [
+      "按值推导会丢掉引用和顶层 const，需要时写 auto& 或 const auto&。",
+      "decltype(auto) 才能保留引用类别。",
+      "C++14 起可用于函数返回类型推导，C++11 只能用于变量。"
+    ],
+    "pits": [
+      "auto 从花括号初始化推导成 initializer_list，结果类型和预期不同。",
+      "auto x = v[0] 是拷贝，改 x 不影响容器，用 auto& 才是引用。"
+    ],
+    "example": "std::vector<std::pair<int, int>> v;\nfor (const auto& p : v) { /* p 是引用，不拷贝 */ }\nauto it = v.begin();",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/auto"
+  },
+  {
+    "keys": [
+      "decltype"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "在编译期求表达式的类型，常用于模板返回类型和泛型代码。",
+    "notes": [
+      "decltype(变量) 保留引用和 const，decltype((变量)) 得到引用类型。",
+      "decltype 不求值，只做类型推导。",
+      "C++14 的 decltype(auto) 按 decltype 规则推导返回类型。"
+    ],
+    "pits": [
+      "多加一层括号结果就从 int 变成 int&，模板里写错会引用悬空。",
+      "decltype 里写错表达式仍会编译报错，不是运行时问题。"
+    ],
+    "example": "int x = 0;\ndecltype(x) a = x;      // int\ndecltype((x)) b = x;    // int&",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/decltype"
+  },
+  {
+    "keys": [
+      "template"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "定义类模板或函数模板，编译期按实参生成具体代码，实现泛型。",
+    "notes": [
+      "模板必须看到完整定义才能实例化，通常整个定义放头文件。",
+      "模板本身不生成代码，实例化时才生成。",
+      "C++20 起可用概念约束模板参数。"
+    ],
+    "pits": [
+      "模板定义放 .cpp，其他翻译单元使用时报未定义符号。",
+      "编译错误发生在实例化那一刻，报错链会很长。"
+    ],
+    "example": "template <typename T>\nT maxOf(T a, T b) { return a > b ? a : b; }\nint m = maxOf(3, 5);",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/templates"
+  },
+  {
+    "keys": [
+      "typename"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "声明模板类型参数；在依赖类型名前加它，告诉编译器那是类型而不是静态成员。",
+    "notes": [
+      "模板参数列表里 typename 和 class 等价。",
+      "访问 T::value_type 这类依赖类型前必须写 typename。"
+    ],
+    "pits": [
+      "少写 typename 时编译器把 T::value_type 当静态成员，报错信息很难懂。",
+      "C++20 起部分场景可省略，写上位更稳。"
+    ],
+    "example": "template <typename T>\nvoid f(const T& c) {\n  typename T::value_type first = *c.begin();\n}",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "class"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "定义类；默认访问权限 private，默认私有继承。",
+    "notes": [
+      "与 struct 的唯一差别是默认访问权限和默认继承方式。",
+      "用在模板参数列表时与 typename 等价。",
+      "class 也能定义模板类。"
+    ],
+    "pits": [
+      "class 默认 private，忘写 public 会让接口全不可见。",
+      "class 默认私有继承，public 继承要显式写。"
+    ],
+    "example": "class Point {\npublic:\n  Point(int x, int y) : x_(x), y_(y) { }\nprivate:\n  int x_, y_;\n};",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/class"
+  },
+  {
+    "keys": [
+      "struct"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "定义类；默认访问权限 public，默认公有继承，适合纯数据聚合。",
+    "notes": [
+      "与 class 只差默认可见性和默认继承方式。",
+      "能写构造函数和成员函数，风格上只是约定。",
+      "空结构体大小至少 1 字节。"
+    ],
+    "pits": [
+      "用 struct 却写了 private 成员，花括号聚合初始化就失败。",
+      "给 struct 加自定义构造函数后它不再是聚合类型，聚合初始化失效。"
+    ],
+    "example": "struct Point { int x; int y; };\nPoint p{1, 2};   // 聚合初始化",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/class"
+  },
+  {
+    "keys": [
+      "enum"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "定义具名整数常量集合；enum class（C++11 作用域枚举）让枚举值不泄漏且不隐式转整数。",
+    "notes": [
+      "普通 enum 的枚举值泄漏到外层作用域，可隐式转 int。",
+      "enum class 的值要写 Color::Red，转整数必须 static_cast。",
+      "两者都能指定底层类型：enum Color : uint8_t。"
+    ],
+    "pits": [
+      "两个普通 enum 里有同名枚举值，在同一作用域直接冲突。",
+      "enum class 传给 printf 或流输出编译不过，要先转整数。",
+      "普通 enum 隐式转整数，参与运算时容易和普通整数混用。"
+    ],
+    "example": "enum Color { Red, Green, Blue };\nenum class State : uint8_t { Idle, Busy };\nint v = Green;                            // 普通 enum 隐式转 int\nauto s = static_cast<int>(State::Busy);   // 1",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/enum"
+  },
+  {
+    "keys": [
+      "union"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "所有成员共用同一块内存，同一时刻只有一个成员有效；用于省内存或类型双关。",
+    "notes": [
+      "大小等于最大成员大小，再按最大对齐向上取整。",
+      "C++ 里读非活跃成员是未定义行为，公共初始序列例外。",
+      "C++20 起可用 std::bit_cast 做安全的类型双关。"
+    ],
+    "pits": [
+      "往 union 里放 std::string 这类非平凡类型，要自己管构造析构，容易泄漏。",
+      "用 union 把 int 读成 float 是未定义行为，别拿它做类型转换。"
+    ],
+    "example": "union Value {\n  int i;\n  float f;\n};\nValue v; v.i = 1;",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/union"
+  },
+  {
+    "keys": [
+      "using"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "引入命名空间成员、定义类型别名，或把基类的重载重新带进派生类作用域。",
+    "notes": [
+      "using Alias = Type; 是 C++11 起的别名写法，可被模板化（typedef 不能）。",
+      "类里写 using Base::f; 可把被隐藏的基类重载拉回来。",
+      "using namespace 只在本作用域生效。"
+    ],
+    "pits": [
+      "头文件里写 using namespace 会污染所有包含它的文件。",
+      "派生类定义了同名函数会隐藏基类所有重载，要再写 using 基类名 才能都可见。"
+    ],
+    "example": "using IntVec = std::vector<int>;\nnamespace my { using std::string; }\nIntVec v;",
+    "since": "C++11"
+  },
+  {
+    "keys": [
+      "namespace"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "给名字划分作用域，避免不同库的同名符号冲突。",
+    "notes": [
+      "可以嵌套；C++17 起支持 namespace a::b {} 的写法。",
+      "匿名 namespace 等价于文件内 static，只在本翻译单元可见。"
+    ],
+    "pits": [
+      "头文件里 using namespace std; 会污染包含者。",
+      "匿名 namespace 里的类型在不同翻译单元是不同的类型，不能放进接口。"
+    ],
+    "example": "namespace net {\nint connect();\n}\nint r = net::connect();",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/namespace"
+  },
+  {
+    "keys": [
+      "friend"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "声明非成员函数或其他类可以访问本类的 private 和 protected 成员。",
+    "notes": [
+      "友元关系单向、不传递、不被继承。",
+      "常见用途是让 operator<< 访问私有数据。",
+      "友元声明不是真正的函数声明，类内定义的友元才是。"
+    ],
+    "pits": [
+      "友元破坏封装，设计上能不用就不用。",
+      "只在类内声明友元函数却不定义，链接时可能报未定义符号。"
+    ],
+    "example": "class Matrix {\n  friend std::ostream& operator<<(std::ostream& os, const Matrix& m);\nprivate:\n  int data_[4]{};\n};",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/friend"
+  },
+  {
+    "keys": [
+      "operator"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "声明运算符重载，让自定义类型支持 +、==、<< 等运算。",
+    "notes": [
+      "至少一个操作数必须是用户定义类型。",
+      "优先级和结合性固定，不能改。",
+      "成员函数形式和自由函数形式二选一。"
+    ],
+    "pits": [
+      "同一个运算符同时提供成员和自由函数版本，调用会二义。",
+      "重载逻辑与、逻辑或会失去短路求值。",
+      "重载 =、()、[]、-> 必须是成员函数。"
+    ],
+    "example": "struct Vec2 {\n  int x{}, y{};\n};\nVec2 operator+(Vec2 a, Vec2 b) { return {a.x + b.x, a.y + b.y}; }",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/operators"
+  },
+  {
+    "keys": [
+      "this"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "成员函数里的指针，指向调用该函数的对象；静态成员函数没有 this。",
+    "notes": [
+      "const 成员函数里 this 的类型是 const T*。",
+      "返回 *this 可以支持链式调用。",
+      "this 是右值指针，不能给它赋值。"
+    ],
+    "pits": [
+      "构造函数里对象还没构造完，别把 this 交给别的线程或函数。",
+      "返回局部对象的 *this 后引用悬空。"
+    ],
+    "example": "class Counter {\n  int n_ = 0;\npublic:\n  Counter& inc() { ++n_; return *this; }\n};",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/this"
+  },
+  {
+    "keys": [
+      "nullptr"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "类型安全的空指针字面量，类型是 std::nullptr_t，可转任意指针类型。",
+    "notes": [
+      "与整数 0 和 NULL 不同，重载决议时不会被当成 int。",
+      "nullptr 转 bool 是 false。",
+      "能转成任意对象指针、函数指针和成员指针。"
+    ],
+    "pits": [
+      "用 NULL 时它可能就是 0，f(int) 和 f(void*) 的重载会选错。",
+      "把 nullptr 传给 printf 的 %p 前要转成 void*。"
+    ],
+    "example": "void f(int);\nvoid f(void*);\nf(nullptr);   // 选 f(void*)，f(NULL) 可能选 f(int)",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/nullptr"
+  },
+  {
+    "keys": [
+      "true"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "bool 类型的真值字面量，转整数是 1。",
+    "notes": [
+      "C++ 里 bool 是独立类型，true 赋值给 int 得到 1。",
+      "输出时默认显示 1，加 std::boolalpha 才显示 true。"
+    ],
+    "pits": [
+      "拿 true 和整数比较没有意义，直接用 bool 表达式。",
+      "把函数返回的 int 隐式转 bool 会丢失非零细节，需要判断具体值时别转。"
+    ],
+    "example": "bool ok = true;\nint n = ok;   // 1",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "false"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "bool 类型的假值字面量，转整数是 0。",
+    "notes": [
+      "非零值隐式转 bool 为 true，0 为 false。",
+      "指针判空写 if (p) 或 if (!p) 即可，不用和 false 比较。"
+    ],
+    "pits": [
+      "把浮点数和 false 比较，NaN 参与时结果不符合直觉。",
+      "if (flag == true) 这种写法掩盖了 flag 本身已是 bool，直接写 if (flag) 更清楚。"
+    ],
+    "example": "bool done = false;\nif (!done) { /* 还没完成 */ }",
+    "since": "C++98"
+  },
+  {
+    "keys": [
+      "public"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "公有访问说明符：成员对所有人可见，构成类的对外接口。",
+    "notes": [
+      "class 默认 private，struct 默认 public。",
+      "公有继承表示 is-a 关系，派生类可隐式转基类。",
+      "public 成员函数里不要暴露内部数据结构的引用。"
+    ],
+    "pits": [
+      "把数据成员设成 public 之后就守不住类的内部不变式。",
+      "公有继承用于复用实现而不是 is-a 时，基类析构要 virtual。"
+    ],
+    "example": "class Account {\npublic:\n  int balance() const { return balance_; }\nprivate:\n  int balance_ = 0;\n};",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/access"
+  },
+  {
+    "keys": [
+      "private"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "私有访问说明符：只有本类成员和友元能访问，用于隐藏实现。",
+    "notes": [
+      "private 成员不参与接口，实现可以自由改。",
+      "派生类和外部都访问不到 private 成员。",
+      "对 private 虚函数仍可被子类覆盖。"
+    ],
+    "pits": [
+      "把想被子类重写的成员函数写成 private，派生类里调用会编译报不可访问。",
+      "private 继承常被误当成 public 继承，外部无法转成基类。"
+    ],
+    "example": "class Stack {\npublic:\n  bool empty() const { return data_.empty(); }\nprivate:\n  std::vector<int> data_;\n};",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/access"
+  },
+  {
+    "keys": [
+      "protected"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "受保护访问说明符：本类、友元和派生类可见，对外不可见。",
+    "notes": [
+      "介于 public 与 private 之间，供继承体系内部使用。",
+      "protected 数据成员会让派生类依赖基类实现细节。"
+    ],
+    "pits": [
+      "直接暴露 protected 数据成员后，基类改内部表示会连带破坏派生类。",
+      "派生类对象通过基类指针访问时仍受保护限制，不能随便取 protected 成员。"
+    ],
+    "example": "class Base {\nprotected:\n  int state_ = 0;\n};\nclass D : public Base { void reset() { state_ = 0; } };",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/access"
+  },
+  {
+    "keys": [
+      "sizeof"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "编译期求类型或对象占用的字节数，不含堆上分配的内存。",
+    "notes": [
+      "结果是 size_t，sizeof(char) 恒为 1。",
+      "sizeof(数组) 是数组总字节数，数组传进函数后退化成指针，sizeof 变成指针宽度。",
+      "对类类型会算上对齐填充。"
+    ],
+    "pits": [
+      "用 sizeof(指针) 算数组长度是错的，得到的是指针宽度。",
+      "对 VLA 这类 GCC 扩展才在运行期求值，标准 C++ 是编译期。"
+    ],
+    "example": "int a[10];\nstd::cout << sizeof(a) / sizeof(a[0]);   // 10\nint* p = a;\nstd::cout << sizeof(p);                  // 8（64 位）",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/sizeof"
+  },
+  {
+    "keys": [
+      "alignof"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "编译期求类型的对齐要求，单位是字节。",
+    "notes": [
+      "返回 size_t，通常等于该类型成员需要的最大对齐。",
+      "与 alignas 配合控制结构体的内存布局。"
+    ],
+    "pits": [
+      "对齐要求超过平台默认时，malloc 不保证满足，要用 aligned_alloc 或 aligned new。",
+      "标准形式只接受类型（type-id），对变量用 alignof 是编译器扩展。"
+    ],
+    "example": "struct A { char c; int i; };\nstd::cout << alignof(A);   // 4\nstd::cout << sizeof(A);    // 8",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/alignof"
+  },
+  {
+    "keys": [
+      "alignas"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "指定变量或类型的对齐字节数，用于 SIMD、缓存行对齐等场景。",
+    "notes": [
+      "对齐值必须是 2 的幂且不小于自然对齐。",
+      "可写在变量、成员、类定义之前。",
+      "alignas(0) 被忽略，多写时取最大值。"
+    ],
+    "pits": [
+      "结构体加 alignas 后 sizeof 变大，按字节 memcpy 或序列化布局会变。",
+      "新分配的对象要对齐才能用，栈上对齐不等于堆上对齐。"
+    ],
+    "example": "struct alignas(16) Vec4 { float v[4]; };\nalignas(64) char buffer[64];   // 缓存行对齐",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/alignas"
+  },
+  {
+    "keys": [
+      "static_assert"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "编译期断言：条件不成立直接编译失败，用于检查模板参数和平台假设。",
+    "notes": [
+      "C++11 需要错误消息参数，C++17 起可省略。",
+      "只在编译期生效，没有运行期开销。",
+      "常配合 type_traits 约束模板。"
+    ],
+    "pits": [
+      "static_assert 里不能用运行期变量，否则编译报错。",
+      "模板里写 static_assert(false) 在 C++23 前可能让整个模板直接报错，要依赖类型参数。"
+    ],
+    "example": "static_assert(sizeof(int) == 4, \"本平台 int 不是 4 字节\");\ntemplate <typename T>\nvoid f() { static_assert(std::is_integral_v<T>, \"需要整数类型\"); }",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/static_assert"
+  },
+  {
+    "keys": [
+      "thread_local"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "声明线程存储期变量：每个线程各有一份副本，互不干扰。",
+    "notes": [
+      "首次在该线程使用到声明时初始化，C++11 起线程安全。",
+      "可用于函数内局部变量、类静态成员和全局。",
+      "与 static 组合可做线程内共享、跨线程隔离。"
+    ],
+    "pits": [
+      "线程退出时才析构，若此时访问已销毁的全局对象会崩。",
+      "thread_local 不减少锁的需求，多线程访问同一全局数据仍要同步。"
+    ],
+    "example": "thread_local int counter = 0;\nvoid f() { ++counter; }   // 每个线程独立计数",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/language/storage_duration"
+  },
+  {
+    "keys": [
+      "new"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "在堆上分配对象并调用构造函数；分配失败抛 std::bad_alloc。",
+    "notes": [
+      "new 与 delete 配对，数组用 new[] 与 delete[]。",
+      "placement new 可以在已有内存上构造对象。",
+      "C++17 起有带对齐的 new。"
+    ],
+    "pits": [
+      "new 后忘 delete 会泄漏，异常路径更要交给智能指针。",
+      "new[] 用 delete（不带方括号）释放是未定义行为。"
+    ],
+    "example": "int* p = new int(42);\nstd::unique_ptr<int> q = std::make_unique<int>(7);\ndelete p;",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/new"
+  },
+  {
+    "keys": [
+      "delete"
+    ],
+    "scope": "关键字",
+    "kind": "关键字",
+    "brief": "释放 new 分配的对象并调用析构函数；delete 空指针是安全的。",
+    "notes": [
+      "delete 后指针仍是悬空指针，要自己置空。",
+      "数组必须用 delete[] 与 new[] 配对。",
+      "能重载 operator delete 但很少需要。"
+    ],
+    "pits": [
+      "对同一指针 delete 两次是未定义行为。",
+      "delete 不会改变指针的值，重复删除前要置 nullptr。"
+    ],
+    "example": "int* p = new int(1);\ndelete p;\np = nullptr;   // 防重复删除",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/language/delete"
+  },
+  {
+    "keys": [
+      "size_t"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "无符号整数类型，表示对象大小和下标；容器的 size() 返回它。",
+    "notes": [
+      "宽度等于指针宽度：32 位平台 4 字节，64 位平台 8 字节。",
+      "和 size() 比较时用 size_t 可避免有符号与无符号混比的警告。",
+      "printf 用 %zu 输出。"
+    ],
+    "pits": [
+      "无符号减法下溢：size_t i = 0; i - 1 会变成极大值，循环判断挂死。",
+      "和 int 混算时负数被转成大无符号数，比较结果反转。"
+    ],
+    "example": "std::vector<int> v{1, 2, 3};\nfor (size_t i = 0; i < v.size(); ++i) { }",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/types/size_t"
+  },
+  {
+    "keys": [
+      "int32_t"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "正好 32 位的有符号整数；需要跨平台固定宽度时用它而不是 int。",
+    "notes": [
+      "定义在 <cstdint>；int 的宽度由平台决定，常见 4 字节但不保证。",
+      "范围是 -2^31 到 2^31-1。",
+      "printf 用 PRId32 宏，或先转 long long 再打印。"
+    ],
+    "pits": [
+      "标准只保证可选的 int32_t 在提供 32 位整数的平台存在，极端平台可能没有。",
+      "平台相关格式串配错类型是未定义行为，用 PRId32 最稳。"
+    ],
+    "example": "int32_t n = 2147483647;   // 上限\nint32_t m = -2147483647 - 1;   // 下限",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/types/integer"
+  },
+  {
+    "keys": [
+      "uint32_t"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "正好 32 位的无符号整数；用于位掩码、协议字段和哈希值。",
+    "notes": [
+      "无符号回绕是定义好的，按 2^32 取模。",
+      "和 int32_t 混算时 int32_t 会被转成无符号。",
+      "printf 用 PRIu32。"
+    ],
+    "pits": [
+      "用 %d 打印 uint32_t 是未定义行为，改用 PRIu32。",
+      "无符号比较里写 i >= 0 永远成立，编译器会警告。"
+    ],
+    "example": "uint32_t mask = 0xFFu;\nuint32_t v = 0x12345678u & mask;   // 0x78",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/types/integer"
+  },
+  {
+    "keys": [
+      "int64_t"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "正好 64 位的有符号整数；存文件大小、时间戳和大整数用它。",
+    "notes": [
+      "32 位平台上 long 只有 4 字节，别用 long 存 64 位。",
+      "范围约 -9.2e18 到 9.2e18。",
+      "printf 用 PRId64，或 long long 加 %lld。"
+    ],
+    "pits": [
+      "Windows 上 long 是 4 字节，用 long 存 64 位会截断。",
+      "字面量不加 LL 后缀时先按 int 计算，可能先溢出再赋给 int64_t。"
+    ],
+    "example": "int64_t bytes = 8LL * 1024 * 1024 * 1024;   // 8 GiB",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/types/integer"
+  },
+  {
+    "keys": [
+      "uint64_t"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "正好 64 位的无符号整数；用于哈希、位图和大计数器。",
+    "notes": [
+      "回绕按 2^64 取模，是定义好的行为。",
+      "std::hash 的结果在 64 位平台上常是 64 位。",
+      "printf 用 PRIu64。"
+    ],
+    "pits": [
+      "把 -1 赋给 uint64_t 得到 18446744073709551615，比较会反直觉。",
+      "和 int 混算时负数被转成大无符号数，条件可能永远成立。"
+    ],
+    "example": "uint64_t id = 0xFFFFFFFFFFFFFFFFull;   // 最大值",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/types/integer"
+  },
+  {
+    "keys": [
+      "DWORD"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "Win32 的 32 位无符号整数别名，接口里常表示长度、错误码和标志位。",
+    "notes": [
+      "本质是 typedef unsigned long DWORD，Windows 下 long 恒为 4 字节。",
+      "GetLastError、GetTickCount 等返回 DWORD。",
+      "很多 Win32 常量宏也是 DWORD 类型。"
+    ],
+    "pits": [
+      "无符号类型，和 int 比较时负数会被转成大数。",
+      "printf 用 %lu 还是 %u 取决于平台，跨平台先转 unsigned 更稳。"
+    ],
+    "example": "DWORD err = GetLastError();\nif (err != ERROR_SUCCESS) { /* 查错误码含义 */ }",
+    "since": "Win32",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types"
+  },
+  {
+    "keys": [
+      "HANDLE"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "Win32 内核对象句柄，本质是 void* 的别名；用完通常要 CloseHandle。",
+    "notes": [
+      "句柄是内核对象表的索引，不是可以解引用的指针。",
+      "创建失败可能返回 NULL 或 INVALID_HANDLE_VALUE，两者不通用。",
+      "CloseHandle 后句柄失效。"
+    ],
+    "pits": [
+      "把 INVALID_HANDLE_VALUE 当 NULL 判断会漏检失败。",
+      "重复 CloseHandle 同一句柄会失败。"
+    ],
+    "example": "HANDLE h = CreateEventA(nullptr, FALSE, FALSE, nullptr);\nif (h == nullptr) { /* 创建失败 */ }\nCloseHandle(h);",
+    "since": "Win32",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types"
+  },
+  {
+    "keys": [
+      "LPVOID"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "Win32 的 void* 别名，传任意缓冲区指针给 API 时使用。",
+    "notes": [
+      "就是 void*，没有类型信息，用前要转回具体类型。",
+      "64 位下指针是 8 字节，LP 前缀只是历史遗留。",
+      "只读版本是 LPCVOID。"
+    ],
+    "pits": [
+      "转回具体类型时类型写错编译器不报错，运行期才崩。",
+      "对 void* 直接做指针加减在标准 C++ 里非法，先转成 char*。"
+    ],
+    "example": "char data[16]{};\nLPVOID p = data;\nstatic_cast<char*>(p)[0] = 'A';",
+    "since": "Win32",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types"
+  },
+  {
+    "keys": [
+      "BOOL"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "Win32 的 int 型布尔，4 字节，TRUE 为 1、FALSE 为 0。",
+    "notes": [
+      "不是 C++ 的 bool，任何非零值都按真处理。",
+      "Win32 API 返回 BOOL 时判断写 if (!ret)。",
+      "放进结构体占 4 字节，影响布局。"
+    ],
+    "pits": [
+      "和 bool 混用会改变结构体大小与二进制布局。",
+      "用 == TRUE 判断可能误判，因为真值不保证是 1。"
+    ],
+    "example": "BOOL ok = CloseHandle(h);\nif (!ok) { /* 失败，查 GetLastError */ }",
+    "since": "Win32",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types"
+  },
+  {
+    "keys": [
+      "LPCSTR"
+    ],
+    "scope": "类型",
+    "kind": "类型",
+    "brief": "Win32 的 const char* 别名，A 版 API 的窄字符串参数类型。",
+    "notes": [
+      "宽字符版本是 LPCWSTR；MinGW 常用 A 版直接传窄字符串。",
+      "TCHAR 宏在 UNICODE 下映射到 W 版。",
+      "LP 前缀是历史遗留，64 位下就是普通指针。"
+    ],
+    "pits": [
+      "把 std::string::c_str() 传给保存指针的 API，字符串析构后指针悬空。",
+      "ANSI 版按当前代码页解释字节，中文路径可能乱码，要用 W 版。"
+    ],
+    "example": "LPCSTR name = \"demo.txt\";\nHANDLE h = CreateFileA(name, GENERIC_READ, 0, nullptr,\n                       OPEN_EXISTING, 0, nullptr);",
+    "since": "Win32",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types"
+  },
+  {
+    "keys": [
+      "<iostream>"
+    ],
+    "scope": "iostream",
+    "kind": "头文件",
+    "brief": "标准输入输出流：cin、cout、cerr、clog 四个全局流对象和 endl。",
+    "notes": [
+      "cin 读标准输入，cout 写标准输出，cerr 写错误输出且不缓冲。",
+      "默认与 C stdio 同步，混用 printf 安全但慢，可关同步提速。",
+      "endl 输出换行并刷新缓冲。"
+    ],
+    "pits": [
+      "cout 缓冲区没刷新时程序崩溃，输出可能丢，调试信息用 cerr。",
+      "循环里大量用 endl 会频繁刷新，拖慢输出，换行用反斜杠 n 字符。"
+    ],
+    "example": "#include <iostream>\nint main() {\n  std::cout << 42 << std::endl;\n}",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/iostream"
+  },
+  {
+    "keys": [
+      "<iomanip>"
+    ],
+    "scope": "iomanip",
+    "kind": "头文件",
+    "brief": "输出格式操纵符：setw、setprecision、setfill、fixed、hex、boolalpha。",
+    "notes": [
+      "setw 只对下一次输出生效，setprecision 和 setfill 会持续。",
+      "fixed 让浮点按小数点后位数输出。",
+      "hex 和 dec 切换整数输出进制。"
+    ],
+    "pits": [
+      "setw 只作用于紧接着的一次输出，链式写多个值容易错位。",
+      "setw 对字符串只补空格，不会截断超长内容。"
+    ],
+    "example": "#include <iomanip>\nstd::cout << std::fixed << std::setprecision(2) << 3.14159;\nstd::cout << std::setw(6) << std::setfill('0') << 42;   // 000042",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/iomanip"
+  },
+  {
+    "keys": [
+      "<fstream>"
+    ],
+    "scope": "fstream",
+    "kind": "头文件",
+    "brief": "文件流：ifstream 读、ofstream 写、fstream 可读可写。",
+    "notes": [
+      "构造时传路径即打开，也可以先默认构造再 open()。",
+      "默认文本模式，Windows 下转换换行，读写二进制要加 ios::binary。",
+      "ofstream 默认用 trunc 截断已有文件。"
+    ],
+    "pits": [
+      "打开失败不抛异常，必须检查 is_open() 或 if (out)。",
+      "文件没关就程序异常退出，缓冲区数据可能丢。"
+    ],
+    "example": "#include <fstream>\nstd::ofstream out(\"a.txt\");\nout << 42;\nif (!out) { /* 打开或写入失败 */ }",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/fstream"
+  },
+  {
+    "keys": [
+      "<sstream>"
+    ],
+    "scope": "sstream",
+    "kind": "头文件",
+    "brief": "字符串流：istringstream 解析、ostringstream 格式化、stringstream 两者兼有。",
+    "notes": [
+      "常用于拆分字符串和数字转字符串，精度可控。",
+      "用完要 clear() 才能复用同一个流。",
+      "str() 取出或设置内部字符串。"
+    ],
+    "pits": [
+      "复用同一个流不 clear()，第二次读写直接失败。",
+      "读出失败后流进入 fail 状态，后续读取全部无效。"
+    ],
+    "example": "#include <sstream>\nstd::istringstream in(\"12 34\");\nint a = 0, b = 0;\nin >> a >> b;   // 12 34",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/sstream"
+  },
+  {
+    "keys": [
+      "<string>"
+    ],
+    "scope": "string",
+    "kind": "头文件",
+    "brief": "std::string 动态字符串：自动管理内存，替代 C 的 char 数组。",
+    "notes": [
+      "提供 std::string、std::to_string、std::stoi 等。",
+      "短字符串有 SSO，小串不分配堆内存。",
+      "和 C 接口交互用 c_str() 或 data()。"
+    ],
+    "pits": [
+      "c_str() 返回的指针在 string 修改或析构后失效。",
+      "用 memcpy 在同类型 string 之间拷贝会破坏内部状态。"
+    ],
+    "example": "#include <string>\nstd::string s = \"abc\";\ns += \"def\";\nstd::cout << s.size();   // 6",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/string"
+  },
+  {
+    "keys": [
+      "<string_view>"
+    ],
+    "scope": "string_view",
+    "kind": "头文件",
+    "brief": "只读字符串视图：不拥有、不拷贝，函数参数接收字符串的高效方式。",
+    "notes": [
+      "由指针加长度组成，构造是 O(1)。",
+      "std::string 能隐式转 string_view，反过来不行。",
+      "适合做函数参数，不适合长期存成成员。"
+    ],
+    "pits": [
+      "视图不拥有数据，所指的 string 析构后视图悬空。",
+      "把临时 string 造的视图存下来，语句结束就悬空。"
+    ],
+    "example": "#include <string_view>\nvoid f(std::string_view sv) { }\nf(\"literal\");",
+    "since": "C++17",
+    "link": "https://en.cppreference.com/w/cpp/header/string_view"
+  },
+  {
+    "keys": [
+      "<vector>"
+    ],
+    "scope": "vector",
+    "kind": "头文件",
+    "brief": "动态数组：随机访问 O(1)，尾部增删均摊 O(1)，默认首选容器。",
+    "notes": [
+      "内存连续，可用 data() 传给 C 接口。",
+      "扩容通常 1.5 到 2 倍，reserve 可避免反复搬迁。",
+      "中间 insert 和 erase 是 O(n)。"
+    ],
+    "pits": [
+      "扩容后所有迭代器、指针、引用失效。",
+      "v[i] 不检查越界，越界是未定义行为，要检查就用 at()。"
+    ],
+    "example": "#include <vector>\nstd::vector<int> v{1, 2, 3};\nv.reserve(10);\nv.push_back(4);",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/vector"
+  },
+  {
+    "keys": [
+      "<deque>"
+    ],
+    "scope": "deque",
+    "kind": "头文件",
+    "brief": "双端队列：两端 O(1) 增删，支持随机访问，内存分段连续。",
+    "notes": [
+      "适合频繁 push_front 的场景。",
+      "随机访问比 vector 多一次间接跳转，常数更大。",
+      "中间插入仍是 O(n)。"
+    ],
+    "pits": [
+      "内存不连续，不能拿 &d[0] 当数组传给 C 函数。",
+      "两端插入也可能让迭代器失效，规则和 vector 不同。"
+    ],
+    "example": "#include <deque>\nstd::deque<int> d;\nd.push_front(1);\nd.push_back(2);",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/deque"
+  },
+  {
+    "keys": [
+      "<list>"
+    ],
+    "scope": "list",
+    "kind": "头文件",
+    "brief": "双向链表：任意位置插入删除 O(1)，不支持随机访问。",
+    "notes": [
+      "splice 可以在 O(1) 内拼接或转移节点。",
+      "缓存不友好，遍历通常比 vector 慢。",
+      "排序用成员函数 sort()。"
+    ],
+    "pits": [
+      "按索引访问是 O(n)，别拿 list 当数组用。",
+      "std::sort 需要随机访问迭代器，对 list 编译不过。"
+    ],
+    "example": "#include <list>\nstd::list<int> lst{2, 3};\nauto it = lst.begin();\nlst.insert(it, 1);   // 1 2 3",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/list"
+  },
+  {
+    "keys": [
+      "<array>"
+    ],
+    "scope": "array",
+    "kind": "头文件",
+    "brief": "固定长度数组 std::array：栈上存储，带 size()、at() 和迭代器。",
+    "notes": [
+      "长度是编译期常量，运行开销和 C 数组相同。",
+      "支持花括号聚合初始化。",
+      "按值传参会整个拷贝，通常用 const&。"
+    ],
+    "pits": [
+      "长度很大时爆栈，动态长度用 vector。",
+      "C 数组会退化成指针，std::array 不会，sizeof 行为不同。"
+    ],
+    "example": "#include <array>\nstd::array<int, 3> a{1, 2, 3};\nstd::cout << a.size();   // 3",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/array"
+  },
+  {
+    "keys": [
+      "<map>"
+    ],
+    "scope": "map",
+    "kind": "头文件",
+    "brief": "有序关联容器：红黑树实现，按 key 排序，查找和插入 O(log n)。",
+    "notes": [
+      "遍历按 key 升序，key 不可修改。",
+      "operator[] 找不到会插入默认值。",
+      "要自定义顺序就传比较器。"
+    ],
+    "pits": [
+      "operator[] 在只读语义下也会插入，查询用 find 或 at。",
+      "成员 erase(it) 返回下一个迭代器，erase(key) 返回删除个数，别混。"
+    ],
+    "example": "#include <map>\nstd::map<std::string, int> m;\nm[\"a\"] = 1;\nif (m.find(\"b\") == m.end()) { /* 不存在 */ }",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/map"
+  },
+  {
+    "keys": [
+      "<unordered_map>"
+    ],
+    "scope": "unordered_map",
+    "kind": "头文件",
+    "brief": "哈希表 map：平均 O(1) 查找，遍历顺序不固定。",
+    "notes": [
+      "元素按桶组织，rehash 后迭代器失效，但指向元素的指针和引用仍有效。",
+      "key 需要可哈希且可判等。",
+      "reserve 可减少 rehash 次数。"
+    ],
+    "pits": [
+      "哈希碰撞严重时退化成 O(n)。",
+      "遍历顺序依赖实现，不能拿它当稳定输出。"
+    ],
+    "example": "#include <unordered_map>\nstd::unordered_map<std::string, int> m;\nm.reserve(100);\nm[\"a\"] = 1;",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/unordered_map"
+  },
+  {
+    "keys": [
+      "<set>"
+    ],
+    "scope": "set",
+    "kind": "头文件",
+    "brief": "有序集合：红黑树实现，元素唯一且有序，插入查找 O(log n)。",
+    "notes": [
+      "元素不可修改，要改就 erase 再 insert。",
+      "提供 lower_bound 和 upper_bound 做范围查询。",
+      "没有 operator[]。"
+    ],
+    "pits": [
+      "set 没有下标访问，用 find 或 count。",
+      "自定义元素类型要提供严格弱序比较。"
+    ],
+    "example": "#include <set>\nstd::set<int> s{3, 1, 2};\ns.insert(2);   // 重复不插入\nfor (int x : s) { }   // 1 2 3",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/set"
+  },
+  {
+    "keys": [
+      "<unordered_set>"
+    ],
+    "scope": "unordered_set",
+    "kind": "头文件",
+    "brief": "哈希集合：平均 O(1) 判断是否存在，无序，适合去重。",
+    "notes": [
+      "插入重复元素不报错，只是不增加。",
+      "reserve 减少 rehash。",
+      "rehash 后迭代器失效。"
+    ],
+    "pits": [
+      "遍历顺序不可依赖，跨编译器和版本会变。",
+      "元素多时内存占用比 set 高。"
+    ],
+    "example": "#include <unordered_set>\nstd::unordered_set<int> s;\ns.insert(1);\nif (s.count(1)) { /* 存在 */ }",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/unordered_set"
+  },
+  {
+    "keys": [
+      "<stack>"
+    ],
+    "scope": "stack",
+    "kind": "头文件",
+    "brief": "栈适配器：后进先出，底层默认 deque。",
+    "notes": [
+      "接口只有 top、push、pop、size、empty。",
+      "pop 不返回元素，要先 top 再 pop。",
+      "可以换 vector 或 list 当底层容器。"
+    ],
+    "pits": [
+      "对空栈 top 或 pop 是未定义行为，先判 empty。",
+      "pop 返回 void，想取值必须分成两步写。"
+    ],
+    "example": "#include <stack>\nstd::stack<int> st;\nst.push(1);\nint top = st.top();\nst.pop();",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/stack"
+  },
+  {
+    "keys": [
+      "<queue>"
+    ],
+    "scope": "queue",
+    "kind": "头文件",
+    "brief": "队列适配器：先进先出，底层默认 deque；priority_queue 也在这个头文件。",
+    "notes": [
+      "priority_queue 默认是大顶堆，top 取最大值。",
+      "queue 没有迭代器，不能遍历。",
+      "pop 不返回元素。"
+    ],
+    "pits": [
+      "空队列 front 或 pop 是未定义行为。",
+      "priority_queue 默认用 operator<，自定义类型要给比较器。"
+    ],
+    "example": "#include <queue>\nstd::queue<int> q;\nq.push(1);\nint front = q.front();\nq.pop();",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/queue"
+  },
+  {
+    "keys": [
+      "<algorithm>"
+    ],
+    "scope": "algorithm",
+    "kind": "头文件",
+    "brief": "通用算法：sort、find、transform、lower_bound 等，作用于迭代器区间。",
+    "notes": [
+      "区间是左闭右开 [first, last)。",
+      "二分查找和排序都要求正确的比较器与有序性前提。",
+      "很多算法有 _if 和 _n 变体。"
+    ],
+    "pits": [
+      "remove 和 unique 不改变 size、不真删元素，必须配 erase 使用。",
+      "比较器不满足严格弱序时 sort 可能越界写内存。"
+    ],
+    "example": "#include <algorithm>\nstd::vector<int> v{3, 1, 2};\nstd::sort(v.begin(), v.end());\nauto it = std::lower_bound(v.begin(), v.end(), 2);",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/algorithm"
+  },
+  {
+    "keys": [
+      "<numeric>"
+    ],
+    "scope": "numeric",
+    "kind": "头文件",
+    "brief": "数值算法：accumulate、iota、gcd、lcm、inner_product。",
+    "notes": [
+      "accumulate 的初值类型决定累加结果的类型。",
+      "iota 从初值开始递增填充区间。",
+      "gcd 和 lcm 是 C++17 加入的。"
+    ],
+    "pits": [
+      "accumulate 初值写 0 会把浮点结果截断成 int。",
+      "这些算法不检查溢出，累加大数会静默回绕。"
+    ],
+    "example": "#include <numeric>\nstd::vector<int> v{1, 2, 3};\nint sum = std::accumulate(v.begin(), v.end(), 0);   // 6\ndouble avg = std::accumulate(v.begin(), v.end(), 0.0) / v.size();",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/numeric"
+  },
+  {
+    "keys": [
+      "<functional>"
+    ],
+    "scope": "functional",
+    "kind": "头文件",
+    "brief": "函数对象与绑定：std::function、bind、ref、greater/less、hash。",
+    "notes": [
+      "std::function 能存任意可调用对象，有类型擦除开销。",
+      "bind 用 placeholders::_1 占位参数。",
+      "hash 是 unordered 容器默认的哈希函数模板。"
+    ],
+    "pits": [
+      "空 std::function 调用抛 std::bad_function_call。",
+      "bind 想传引用必须用 std::ref，否则会拷贝实参。"
+    ],
+    "example": "#include <functional>\nstd::function<int(int)> f = [](int x) { return x + 1; };\nauto g = std::bind(f, std::placeholders::_1);\nstd::cout << g(2);   // 3",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/functional"
+  },
+  {
+    "keys": [
+      "<utility>"
+    ],
+    "scope": "utility",
+    "kind": "头文件",
+    "brief": "通用工具：std::pair、make_pair、std::move、std::forward、swap。",
+    "notes": [
+      "move 只把左值转成右值引用，本身不移动任何东西。",
+      "forward 在模板里保持实参的值类别，用于完美转发。",
+      "exchange 原子地替换并返回旧值。"
+    ],
+    "pits": [
+      "对 const 对象 move 会变成拷贝，因为移动构造接不了 const 右值。",
+      "move 之后的对象处于有效但未指定状态，别假设内容还在。"
+    ],
+    "example": "#include <utility>\nstd::pair<int, int> p{1, 2};\nauto q = std::make_pair(3, 4);\nint a = std::move(p.first);",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/utility"
+  },
+  {
+    "keys": [
+      "<tuple>"
+    ],
+    "scope": "tuple",
+    "kind": "头文件",
+    "brief": "固定长度异构元组：std::tuple、make_tuple、tie、get。",
+    "notes": [
+      "按编译期下标访问：std::get<0>(t)。",
+      "tie 可以一次接出多个返回值。",
+      "结构化绑定也能解包 tuple。"
+    ],
+    "pits": [
+      "get 的下标必须是编译期常量，不能用运行期变量。",
+      "tie 只能绑定已定义的变量，不能顺带声明新变量。"
+    ],
+    "example": "#include <tuple>\nstd::tuple<int, double> t{1, 2.5};\nint a = std::get<0>(t);\ndouble b = std::get<1>(t);",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/tuple"
+  },
+  {
+    "keys": [
+      "<memory>"
+    ],
+    "scope": "memory",
+    "kind": "头文件",
+    "brief": "智能指针与内存管理：unique_ptr、shared_ptr、weak_ptr、make_unique。",
+    "notes": [
+      "unique_ptr 独占所有权，可移动不可拷贝，无额外开销。",
+      "shared_ptr 用引用计数共享所有权；weak_ptr 不增加计数，用于打破循环引用。",
+      "make_shared 一次分配控制块和对象，比 shared_ptr(new T) 高效。"
+    ],
+    "pits": [
+      "shared_ptr 循环引用会让计数永远不归零，内存泄漏。",
+      "把同一裸指针交给两个 shared_ptr 会重复释放。",
+      "unique_ptr 忘了移动就按值传参，直接编译错误。"
+    ],
+    "example": "#include <memory>\nauto p = std::make_unique<int>(42);\nauto sp = std::make_shared<int>(7);\nstd::weak_ptr<int> wp = sp;",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/memory"
+  },
+  {
+    "keys": [
+      "<optional>"
+    ],
+    "scope": "optional",
+    "kind": "头文件",
+    "brief": "可能没有值的包装：std::optional<T>，代替返回 nullptr 或魔法值。",
+    "notes": [
+      "has_value() 判断有没有值，value() 无值会抛 bad_optional_access。",
+      "value_or 提供默认值。",
+      "operator* 和 operator-> 直接取内部对象。"
+    ],
+    "pits": [
+      "对空 optional 解引用是未定义行为，先判断。",
+      "optional 存大对象会让对象变大，传参用 const&。"
+    ],
+    "example": "#include <optional>\nstd::optional<int> findId(int k) {\n  if (k == 1) return 42;\n  return std::nullopt;\n}",
+    "since": "C++17",
+    "link": "https://en.cppreference.com/w/cpp/header/optional"
+  },
+  {
+    "keys": [
+      "<variant>"
+    ],
+    "scope": "variant",
+    "kind": "头文件",
+    "brief": "类型安全的联合体：同一时刻存放若干类型之一，C++17 起可用。",
+    "notes": [
+      "get<T> 或 get<下标> 访问，类型不匹配抛 bad_variant_access。",
+      "std::visit 按实际类型分派。",
+      "valueless_by_exception 表示赋值时抛异常导致无值。"
+    ],
+    "pits": [
+      "默认构造取第一个备选类型，若它不可默认构造，variant 也不可。",
+      "用 get 前不确定当前类型就先用 get_if 或 holds_alternative 判断。"
+    ],
+    "example": "#include <variant>\nstd::variant<int, std::string> v = 1;\nv = std::string(\"hi\");\nif (auto p = std::get_if<int>(&v)) { }",
+    "since": "C++17",
+    "link": "https://en.cppreference.com/w/cpp/header/variant"
+  },
+  {
+    "keys": [
+      "<thread>"
+    ],
+    "scope": "thread",
+    "kind": "头文件",
+    "brief": "线程与 this_thread：创建线程、join/detach、休眠和取线程 id。",
+    "notes": [
+      "线程对象析构前必须 join 或 detach，否则 std::terminate。",
+      "this_thread::get_id 取当前线程 id，sleep_for 让当前线程睡。",
+      "hardware_concurrency 返回硬件并发提示值。"
+    ],
+    "pits": [
+      "忘记 join 或 detach 就析构 thread 对象，程序直接终止。",
+      "detach 后线程不能再 join，且要保证它访问的对象活到线程结束。"
+    ],
+    "example": "#include <thread>\nstd::thread t([]{ });\nt.join();\nstd::this_thread::sleep_for(std::chrono::milliseconds(10));",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/thread"
+  },
+  {
+    "keys": [
+      "<mutex>"
+    ],
+    "scope": "mutex",
+    "kind": "头文件",
+    "brief": "互斥量与锁管理：mutex、lock_guard、unique_lock、scoped_lock。",
+    "notes": [
+      "lock_guard 构造即加锁、析构即解锁，不能手动解锁。",
+      "unique_lock 支持延迟加锁、手动解锁和转移所有权。",
+      "scoped_lock 一次锁多个互斥量，避免死锁。"
+    ],
+    "pits": [
+      "忘记加锁保护共享数据会数据竞争，结果是未定义行为。",
+      "两个线程以不同顺序锁两个 mutex 会死锁。",
+      "lock_guard 和 unique_lock 本身不可拷贝。"
+    ],
+    "example": "#include <mutex>\nstd::mutex mtx;\n{\n  std::lock_guard<std::mutex> lk(mtx);\n  // 临界区\n}",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/mutex"
+  },
+  {
+    "keys": [
+      "<condition_variable>"
+    ],
+    "scope": "condition_variable",
+    "kind": "头文件",
+    "brief": "条件变量：让线程等待某个条件成立，必须配合 mutex 使用。",
+    "notes": [
+      "wait 要带谓词，防虚假唤醒：cv.wait(lk, []{ return ready; })。",
+      "notify_one 唤醒一个等待者，notify_all 唤醒全部。",
+      "wait 期间会自动释放锁，被唤醒后重新加锁。"
+    ],
+    "pits": [
+      "wait 不带谓词会被虚假唤醒，醒来条件可能仍是假。",
+      "修改条件时忘了加锁再通知，等待方可能永远等下去。"
+    ],
+    "example": "#include <condition_variable>\nstd::mutex mtx;\nstd::condition_variable cv;\nbool ready = false;\n// std::unique_lock<std::mutex> lk(mtx); cv.wait(lk, []{ return ready; });",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/condition_variable"
+  },
+  {
+    "keys": [
+      "<atomic>"
+    ],
+    "scope": "atomic",
+    "kind": "头文件",
+    "brief": "原子类型与内存序：std::atomic 让读写不可分割，避免数据竞争。",
+    "notes": [
+      "默认内存序是 memory_order_seq_cst，最强也最慢。",
+      "atomic<bool> 可做简单标志位；组合逻辑仍需 mutex。",
+      "is_lock_free 查询是否真的无锁。"
+    ],
+    "pits": [
+      "两个独立 atomic 之间不保证整体一致，组合操作不是原子的。",
+      "atomic 不等于线程安全容器，元素是 atomic 不代表整个容器安全。"
+    ],
+    "example": "#include <atomic>\nstd::atomic<int> counter{0};\ncounter.fetch_add(1);\nint v = counter.load();",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/atomic"
+  },
+  {
+    "keys": [
+      "<future>"
+    ],
+    "scope": "future",
+    "kind": "头文件",
+    "brief": "异步结果：future、promise、async、packaged_task 取得异步任务的返回值或异常。",
+    "notes": [
+      "future::get 只能调用一次，之后 valid() 变成 false。",
+      "std::async 默认策略可能延迟执行，不保证开新线程。",
+      "promise 用来手动设置值或异常。"
+    ],
+    "pits": [
+      "async 返回的 future 析构时若还没 get，会阻塞等任务跑完。",
+      "promise 没 set_value 就析构，get() 抛 broken_promise。"
+    ],
+    "example": "#include <future>\nauto fut = std::async(std::launch::async, []{ return 42; });\nint v = fut.get();   // 42",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/future"
+  },
+  {
+    "keys": [
+      "<chrono>"
+    ],
+    "scope": "chrono",
+    "kind": "头文件",
+    "brief": "时间库：duration、time_point、steady_clock 和 duration_cast。",
+    "notes": [
+      "测耗时用 steady_clock，单调递增，不受系统时间调整影响。",
+      "duration_cast 截断小数，不四舍五入。",
+      "system_clock 可转 time_t 做日历时间。"
+    ],
+    "pits": [
+      "system_clock 会被校时改动，测耗时可能得到负数。",
+      "duration_cast 转更小单位会截断，毫秒转秒会丢小数。"
+    ],
+    "example": "#include <chrono>\nauto start = std::chrono::steady_clock::now();\nauto ms = std::chrono::duration_cast<std::chrono::milliseconds>(\n    std::chrono::steady_clock::now() - start).count();",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/chrono"
+  },
+  {
+    "keys": [
+      "<random>"
+    ],
+    "scope": "random",
+    "kind": "头文件",
+    "brief": "伪随机数：mt19937 等引擎配合 uniform_int_distribution 等分布使用。",
+    "notes": [
+      "先造引擎，再用分布生成指定区间的值。",
+      "uniform_int_distribution 的区间是闭区间 [a, b]。",
+      "random_device 用来做种子。"
+    ],
+    "pits": [
+      "每次循环都重新造引擎会得到相同序列。",
+      "rand()%N 分布不均且质量差，新代码别用。"
+    ],
+    "example": "#include <random>\nstd::mt19937 gen(std::random_device{}());\nstd::uniform_int_distribution<int> dist(1, 6);\nint dice = dist(gen);",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/random"
+  },
+  {
+    "keys": [
+      "<limits>"
+    ],
+    "scope": "limits",
+    "kind": "头文件",
+    "brief": "数值极限：numeric_limits<T>::max/min/epsilon 等编译期常量。",
+    "notes": [
+      "整数用 max() 和 min()，浮点还有 epsilon()、infinity()、quiet_NaN()。",
+      "numeric_limits<double>::min() 是最小正数，不是最小负数。",
+      "lowest() 才是最小有限值。"
+    ],
+    "pits": [
+      "拿 epsilon 当绝对误差比较浮点，数值大时不准。",
+      "整数没有 infinity 和 NaN，要判断 has_infinity。"
+    ],
+    "example": "#include <limits>\nint mx = std::numeric_limits<int>::max();\ndouble lo = std::numeric_limits<double>::lowest();\ndouble eps = std::numeric_limits<double>::epsilon();",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/limits"
+  },
+  {
+    "keys": [
+      "<cstdint>"
+    ],
+    "scope": "cstdint",
+    "kind": "头文件",
+    "brief": "固定宽度整数类型：int8_t、int32_t、uint64_t、intptr_t 与格式化宏。",
+    "notes": [
+      "还提供 int_leastN_t、int_fastN_t 和 PRId64 等宏。",
+      "宽度固定，适合序列化和网络协议。",
+      "intptr_t 可安全容纳指针值。"
+    ],
+    "pits": [
+      "int8_t 通常是 signed char，用 cout 打印显示字符不是数字，要转 int。",
+      "uint8_t 同理，打印前先转 int。"
+    ],
+    "example": "#include <cstdint>\nint32_t a = 1;\nuint64_t b = 2;\nintptr_t p = 0;",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/cstdint"
+  },
+  {
+    "keys": [
+      "<cassert>"
+    ],
+    "scope": "cassert",
+    "kind": "头文件",
+    "brief": "断言宏 assert：调试期检查条件，定义 NDEBUG 后被编译掉。",
+    "notes": [
+      "NDEBUG（Release 常见）下 assert 完全消失，里面的副作用也不执行。",
+      "失败时打印文件行号并 abort。",
+      "静态断言用 static_assert，不是它。"
+    ],
+    "pits": [
+      "别把有副作用的表达式放进 assert，Release 下不会执行。",
+      "assert 不能代替输入校验，用户输入非法不该靠它兜底。"
+    ],
+    "example": "#include <cassert>\nint n = 3;\nassert(n > 0);   // 条件为假时 abort",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/cassert"
+  },
+  {
+    "keys": [
+      "<cstring>"
+    ],
+    "scope": "cstring",
+    "kind": "头文件",
+    "brief": "C 字符串与内存函数：strlen、strcpy、memcpy、memset、strcmp。",
+    "notes": [
+      "strncpy 不保证在目标末尾补 0 终止符。",
+      "memcpy 处理重叠内存要用 memmove。",
+      "C++ 里字符串优先 std::string。"
+    ],
+    "pits": [
+      "strcpy 不检查目标缓冲区大小，会溢出。",
+      "对不以 0 结尾的缓冲区用 strlen 或 memcpy 会越界读。"
+    ],
+    "example": "#include <cstring>\nchar dst[8]{};\nstd::strncpy(dst, \"abc\", sizeof(dst) - 1);\nint n = std::strlen(dst);   // 3",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/cstring"
+  },
+  {
+    "keys": [
+      "<cstdio>"
+    ],
+    "scope": "cstdio",
+    "kind": "头文件",
+    "brief": "C 标准输入输出：printf、scanf、fopen、fread、fwrite。",
+    "notes": [
+      "格式化输出通常比 iostream 快，格式串要自己保证类型正确。",
+      "printf 的 %s 传 std::string 的 c_str()。",
+      "文件操作结束要 fclose。"
+    ],
+    "pits": [
+      "scanf 必须传地址，传值会崩溃。",
+      "格式串和实参类型不匹配是未定义行为。"
+    ],
+    "example": "#include <cstdio>\nint x = 0;\nstd::printf(\"%d\\n\", 42);\nstd::scanf(\"%d\", &x);",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/cstdio"
+  },
+  {
+    "keys": [
+      "<cstdlib>"
+    ],
+    "scope": "cstdlib",
+    "kind": "头文件",
+    "brief": "C 通用工具：malloc/free、atoi、rand、exit、abs。",
+    "notes": [
+      "malloc 只分配原始内存，不调用构造函数。",
+      "exit 会跳过局部对象析构。",
+      "C++ 里对象分配用 new 或智能指针。"
+    ],
+    "pits": [
+      "malloc 分配的内存用 delete 释放是未定义行为，反之也一样。",
+      "atoi 遇到非法输入返回 0，分不清失败和真值 0，用 strtol。"
+    ],
+    "example": "#include <cstdlib>\nint* p = static_cast<int*>(std::malloc(sizeof(int)));\nstd::free(p);",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/cstdlib"
+  },
+  {
+    "keys": [
+      "<cmath>"
+    ],
+    "scope": "cmath",
+    "kind": "头文件",
+    "brief": "数学函数：sqrt、pow、sin、fabs、floor、ceil、round、isnan。",
+    "notes": [
+      "整型实参先转 double，函数返回浮点。",
+      "比较浮点用 epsilon 或相对误差，别直接用等号。",
+      "NaN 与任何数比较都是 false。"
+    ],
+    "pits": [
+      "sqrt 传负数返回 NaN 而不是抛异常，要自己检查输入。",
+      "pow 参与整数运算会转成浮点，大整数丢精度，整数幂用手写循环更稳。"
+    ],
+    "example": "#include <cmath>\ndouble d = std::sqrt(2.0);\ndouble r = std::round(3.6);   // 4.0\nbool bad = std::isnan(std::nan(\"\"));",
+    "since": "C++98",
+    "link": "https://en.cppreference.com/w/cpp/header/cmath"
+  },
+  {
+    "keys": [
+      "<filesystem>"
+    ],
+    "scope": "filesystem",
+    "kind": "头文件",
+    "brief": "C++17 文件系统：路径、目录遍历、创建删除、文件大小和时间。",
+    "notes": [
+      "fs::path、fs::exists、fs::directory_iterator、fs::create_directories。",
+      "写路径用 / 或 path 拼接，跨平台更安全。",
+      "异常版和 error_code 版并存。"
+    ],
+    "pits": [
+      "老版本 MinGW 的 GCC 8 及以前要额外链接 -lstdc++fs。",
+      "递归遍历大目录要自己控制深度，权限不足会抛异常。"
+    ],
+    "example": "#include <filesystem>\nnamespace fs = std::filesystem;\nif (fs::exists(\"a.txt\")) { fs::remove(\"a.txt\"); }\nfs::create_directories(\"out/data\");",
+    "since": "C++17",
+    "link": "https://en.cppreference.com/w/cpp/header/filesystem"
+  },
+  {
+    "keys": [
+      "<type_traits>"
+    ],
+    "scope": "type_traits",
+    "kind": "头文件",
+    "brief": "编译期类型查询与变换：is_same、enable_if、decay、remove_reference。",
+    "notes": [
+      "C++17 起有 _v 变量模板，写 std::is_same_v<T, int> 更短。",
+      "常用于模板约束和 SFINAE。",
+      "decay 会同时去掉引用、cv 和数组/函数退化。"
+    ],
+    "pits": [
+      "is_integral<bool> 是 true，bool 也算整型。",
+      "直接对引用类型用 is_same 会因 T& 与 T 不等而失败。"
+    ],
+    "example": "#include <type_traits>\nstatic_assert(std::is_same_v<int, int>);\ntemplate <typename T>\nvoid f(T t) { static_assert(std::is_integral_v<T>, \"需要整数类型\"); }",
+    "since": "C++11",
+    "link": "https://en.cppreference.com/w/cpp/header/type_traits"
+  },
+  {
+    "keys": [
+      "<windows.h>"
+    ],
+    "scope": "windows.h",
+    "kind": "头文件",
+    "brief": "Win32 API 总头文件：窗口、线程、文件、句柄、内存映射等全部声明。",
+    "notes": [
+      "MinGW 下一般直接包含即可使用 Win32 类型和函数。",
+      "调用前先看清返回约定：NULL、FALSE、INVALID_HANDLE_VALUE 各有含义。",
+      "句柄类对象用完要 CloseHandle。"
+    ],
+    "pits": [
+      "windows.h 会定义 min 和 max 宏，和 std::min/std::max 冲突，需先定义 NOMINMAX。",
+      "ERROR、DELETE 等宏名容易和自定义标识符撞名。"
+    ],
+    "example": "#define NOMINMAX\n#include <windows.h>\nDWORD pid = GetCurrentProcessId();\nHANDLE h = GetCurrentProcess();",
+    "since": "Win32"
+  },
+  {
+    "keys": [
+      "<bits/stdc++.h>"
+    ],
+    "scope": "bits/stdc++.h",
+    "kind": "头文件",
+    "brief": "竞赛用的万能头：一次包含几乎所有标准库头文件。",
+    "notes": [
+      "GCC 提供，MinGW 和 Linux 的 libstdc++ 有，MSVC 和 clang 的 libc++ 没有。",
+      "只适合刷题和练习，工程代码里逐个包含，别用它。",
+      "会让编译变慢、符号全部进入全局命名空间。"
+    ],
+    "pits": [
+      "换编译器（MSVC/clang）直接编译失败，代码不可移植。",
+      "它不包含 Windows 头文件，Win32 代码仍要单独包含。"
+    ],
+    "example": "#include <bits/stdc++.h>\nint main() {\n  std::vector<int> v{1, 2, 3};\n  std::sort(v.begin(), v.end());\n}",
+    "since": "GCC"
+  }
+]
