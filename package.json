@@ -5,6 +5,14 @@
   "version": "0.1.0",
   "publisher": "cxly",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/soybeanmilka/cpp-zh-hover.git"
+  },
+  "homepage": "https://github.com/soybeanmilka/cpp-zh-hover#readme",
+  "bugs": {
+    "url": "https://github.com/soybeanmilka/cpp-zh-hover/issues"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },

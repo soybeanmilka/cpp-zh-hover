@@ -24,7 +24,14 @@ vscode-cpp-zh-hover/
 
 ## 安装
 
-已打包成 `dist/cpp-zh-hover-0.1.0.vsix`：
+仓库地址：<https://github.com/soybeanmilka/cpp-zh-hover>
+
+克隆后装打包好的 vsix（或在本仓库根目录直接执行第二条）：
+
+```bash
+git clone https://github.com/soybeanmilka/cpp-zh-hover.git
+code --install-extension cpp-zh-hover/dist/cpp-zh-hover-0.1.0.vsix --force
+```
 
 ```bash
 code --install-extension dist/cpp-zh-hover-0.1.0.vsix --force
