@@ -26,7 +26,7 @@
     ],
     "pits": [
       "只 include 它时 inet_pton 没声明；htons 是 glibc 顺带带入的，别依赖。",
-      "sin_family 忘了写 AF_INET，bind 会直接返回 EINVAL。"
+      "sin_family 写成 0 时，connect 会返回 0 却没连上，send 才报 EPIPE。"
     ],
     "example": "sockaddr_in addr{};\naddr.sin_family = AF_INET;\naddr.sin_addr.s_addr = INADDR_ANY;",
     "since": "POSIX.1"
@@ -127,7 +127,7 @@
     ],
     "pits": [
       "accept 第三个参数写成 len 而不是 &len，编译直接报错。",
-      "addr 传 nullptr 时 addrlen 也要传 nullptr，否则可能 EFAULT。"
+      "addr 非空而 addrlen 传 nullptr 会 EFAULT；addr 为 nullptr 时它被忽略。"
     ],
     "example": "sockaddr_in peer{};\nsocklen_t len = sizeof peer;\nint c = accept(listen_fd, reinterpret_cast<sockaddr*>(&peer), &len);",
     "link": "https://man7.org/linux/man-pages/man2/accept.2.html",
@@ -231,7 +231,7 @@
     "params": [
       ["sockfd", "处于监听状态的 fd（listen 之后）"],
       ["addr", "输出对端地址，可传 nullptr 表示不关心"],
-      ["addrlen", "输入缓冲区大小，输出实际长度；addr 为 nullptr 时也传 nullptr"]
+      ["addrlen", "输入缓冲区大小，输出实际长度；addr 为 nullptr 时被忽略"]
     ],
     "ret": "成功返回新的连接 fd；失败返回 -1 并置 errno（EINTR、EMFILE、ECONNABORTED）。",
     "notes": [
@@ -361,7 +361,7 @@
       "普通文件上 write 一般写满；socket/管道上可能短写。"
     ],
     "pits": [
-      "对端关闭后 write 触发 SIGPIPE，默认终止进程，服务端要先忽略。",
+      "对端关闭后继续 write 通常会触发 SIGPIPE，默认终止进程，服务端要先忽略。",
       "短写时只重发剩下的部分，把整块重发会让对端收到重复数据。"
     ],
     "example": "ssize_t n = write(conn, buf, len);\nif (n == -1 && errno == EPIPE) { /* 对端已关闭 */ }",
@@ -456,7 +456,7 @@
       "src 指向二进制地址：IPv4 用 &addr.sin_addr，不是字符串。"
     ],
     "pits": [
-      "把 sin_port 也传进去或传错指针，输出会是乱码或 0.0.0.0。",
+      "src 传成整个 sockaddr_in，会把地址族和端口当地址，转出怪 IP。",
       "size 传 4（IPv4 地址长度）不够放字符串，返回 nullptr/ENOSPC。"
     ],
     "example": "char ip[INET_ADDRSTRLEN];\ninet_ntop(AF_INET, &peer.sin_addr, ip, sizeof ip);\nstd::printf(\"%s:%u\\n\", ip, ntohs(peer.sin_port));",
@@ -528,7 +528,7 @@
     ],
     "pits": [
       "timeout 在 Linux 上会被改写，循环里要重新填一遍。",
-      "select 返回 EINTR 时集合内容不可靠，重试前要全部重建。"
+      "EINTR 时 fd 集合未被改写，但 timeout 已不可用，重试要重填。"
     ],
     "example": "fd_set rfds;\nFD_ZERO(&rfds);\nFD_SET(listen_fd, &rfds);\nint n = select(listen_fd + 1, &rfds, nullptr, nullptr, nullptr);",
     "link": "https://man7.org/linux/man-pages/man2/select.2.html",
@@ -642,7 +642,7 @@
       "每轮 select 前都要重新清零再 FD_SET，不能只在初始化时做一次。"
     ],
     "pits": [
-      "忘了 FD_ZERO，fd_set 里是栈垃圾，select 会等一个随机 fd。",
+      "忘了 FD_ZERO，fd_set 是栈垃圾，select 可能直接返回 EBADF。",
       "只 FD_ZERO 不 FD_SET，select 会一直等到超时，看起来像没反应。"
     ],
     "example": "fd_set rfds;\nFD_ZERO(&rfds);\nFD_SET(listen_fd, &rfds);",
@@ -747,7 +747,7 @@
     "brief": "对端异常终止（RST），连接被强制复位。",
     "sig": "#define ECONNRESET 104  /* Linux */",
     "notes": [
-      "对端进程崩溃、被 kill 或强制关闭后，内核回 RST，连接被复位。",
+      "对端异常关闭（例如带未读数据 close）时，内核发 RST 而不是 FIN。",
       "recv 返回 -1/ECONNRESET，send 可能返回 -1/EPIPE。"
     ],
     "pits": [
