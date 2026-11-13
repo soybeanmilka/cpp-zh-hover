@@ -5,7 +5,7 @@
 - 完全离线：不联网、不要 API key、不依赖翻译服务
 - 词条面向学习者：讲人话、标坑、带可编译示例
 - 未收录的符号：照旧显示 clangd 原来的英文提示，两者并存不冲突
-- 词库规模：393 条 / 5 个领域文件（容器 100、算法 65、并发与内存 85、关键字与头文件 93、C 库与 Win32 50）
+- 词库规模：553 条 / 9 个领域文件（容器与字符串 100、算法 65、并发与内存 85、关键字与头文件 93、C 库与 Win32 50、文件系统 46、文件流与字符串 48、Linux socket 39、Win32 文件与控制台 27）
 
 ## 目录
 
@@ -30,11 +30,11 @@ vscode-cpp-zh-hover/
 
 ```bash
 git clone https://github.com/soybeanmilka/cpp-zh-hover.git
-code --install-extension cpp-zh-hover/dist/cpp-zh-hover-0.1.0.vsix --force
+code --install-extension cpp-zh-hover/dist/cpp-zh-hover-0.2.0.vsix --force
 ```
 
 ```bash
-code --install-extension dist/cpp-zh-hover-0.1.0.vsix --force
+code --install-extension dist/cpp-zh-hover-0.2.0.vsix --force
 ```
 
 装完按 `Ctrl+Shift+P` → `Developer: Reload Window`（或直接重启 VS Code）。
@@ -53,8 +53,12 @@ code --install-extension dist/cpp-zh-hover-0.1.0.vsix --force
 | 并发与内存 | `thread` `mutex` `lock_guard` `condition_variable` `atomic` `async` |
 | 关键字与类型 | `const` `constexpr` `static_cast` `override` `size_t` `HANDLE` |
 | C 库与 Win32 | `printf` `malloc` `CreateFileMappingA` `WaitForSingleObject` `GetLastError` |
+| 文件系统（C++17） | `filesystem` `path` `directory_iterator` `exists` `file_size` `create_directories` |
+| 文件流与格式化 | `ifstream` `ofstream` `getline` `setw` `setprecision` `fixed` |
+| Linux socket（WSL） | `socket` `bind` `listen` `accept` `connect` `inet_ntop` `setsockopt` |
+| Win32 文件与控制台 | `CreateFileA` `ReadFile` `FindFirstFileA` `GetStdHandle` `WriteConsoleA` |
 
-悬停卡片最底下可以点文档链接。链接指向 cppreference 英文站（中文站 zh.cppreference.com 在国内不可达，故统一用英文站），网站访问慢或打不开是网络问题，不影响离线卡片内容。
+悬停卡片最底下可以点文档链接。C++ 标准库链接指向 cppreference 英文站（中文站 zh.cppreference.com 在国内不可达，故统一用英文站）；Linux/POSIX 系统调用指向 man7.org 的 man 手册（英文）；Win32 指向微软文档。网站访问慢或打不开是网络问题，不影响离线卡片内容。
 
 ## 看不到中文？
 
@@ -100,8 +104,8 @@ node scripts/preview.js "<thread>"
 ```bash
 node test/run-tests.js                                    # 单测
 npx --yes @vscode/vsce package --no-dependencies \
-  --out dist/cpp-zh-hover-0.1.0.vsix                      # 打包
-code --install-extension dist/cpp-zh-hover-0.1.0.vsix --force
+  --out dist/cpp-zh-hover-0.2.0.vsix                      # 打包
+code --install-extension dist/cpp-zh-hover-0.2.0.vsix --force
 ```
 
 自检（隔离实例，不开你的日常配置）：

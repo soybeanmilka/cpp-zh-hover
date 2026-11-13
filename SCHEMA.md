@@ -39,7 +39,7 @@
 | `notes` | 否 | string[] | 最多 3 条：复杂度、线程安全、版本要求、易混点，每条 ≤ 80 字。 |
 | `pits` | 否 | string[] | 最多 3 条真正会踩的坑，每条 ≤ 90 字。 |
 | `example` | 否 | string | 2~8 行能看懂的示例，≤ 400 字，不许有 tab。 |
-| `link` | 否 | string | 只填**你确认存在**的页面；拿不准就整个字段省略。允许的域名只有 `zh.cppreference.com`、`en.cppreference.com`、`learn.microsoft.com`。 |
+| `link` | 否 | string | 只填**你确认存在**的页面；拿不准就整个字段省略。允许的域名只有 `zh.cppreference.com`、`en.cppreference.com`、`learn.microsoft.com`，以及 POSIX/Linux 系统调用的 `man7.org`。 |
 | `since` | 否 | string | 例：`C++11`、`C++17`、`Win32`。≤ 12 字。 |
 
 ## 硬规则

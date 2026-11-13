@@ -1,0 +1,612 @@
+[
+  {
+    "keys": ["<winbase.h>"],
+    "scope": "winbase.h",
+    "kind": "头文件",
+    "brief": "Win32 基础 API 的声明头，文件、进程、同步函数的原型大多在这里。",
+    "notes": [
+      "由 <windows.h> 间接包含，正常代码只写 #include <windows.h>",
+      "只有声明和宏，实现放在 kernel32.dll、user32.dll 等系统 DLL 里",
+      "宏 WIN32_LEAN_AND_MEAN 可以挡掉 windows.h 里一部分非必需的头"
+    ],
+    "pits": [
+      "单独 include <winbase.h> 常因缺少 DWORD/HANDLE 等基础 typedef 编译失败，先包含 <windows.h>。",
+      "包含 <windows.h> 后 min/max 宏会和 std::min/std::max 冲突，定义 NOMINMAX 屏蔽。"
+    ],
+    "example": "#define WIN32_LEAN_AND_MEAN\n#include <windows.h>\nint main() {\n  HANDLE h = CreateFileA(\"a.txt\", GENERIC_READ, 0, NULL,\n                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);\n  if (h != INVALID_HANDLE_VALUE) CloseHandle(h);\n}",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CreateFileA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "打开或创建文件、管道、设备，返回文件句柄，是 Win32 文件 I/O 的入口。",
+    "sig": "HANDLE CreateFileA(\n  LPCSTR lpFileName, DWORD dwDesiredAccess,\n  DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes,\n  DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes,\n  HANDLE hTemplateFile\n);",
+    "params": [
+      ["lpFileName", "文件或设备路径，ANSI 字符串；中文名依赖系统 ANSI 代码页，稳妥用 W 版"],
+      ["dwDesiredAccess", "GENERIC_READ / GENERIC_WRITE，或两者按位或；0 表示只查属性不碰数据"],
+      ["dwShareMode", "别人能否同时打开：0 独占；FILE_SHARE_READ / WRITE / DELETE 可组合"],
+      ["dwCreationDisposition", "文件已存在或不存在时怎么办：OPEN_EXISTING、CREATE_ALWAYS、CREATE_NEW、OPEN_ALWAYS"]
+    ],
+    "ret": "成功返回打开的文件句柄；失败返回 INVALID_HANDLE_VALUE，不是 NULL。",
+    "notes": [
+      "句柄用完必须 CloseHandle，否则文件一直被占着，别人打不开或删不掉",
+      "dwFlagsAndAttributes 常用 FILE_ATTRIBUTE_NORMAL；异步 I/O 加 FILE_FLAG_OVERLAPPED",
+      "A 版收 const char*，W 版收 const wchar_t*，是两个不同的导出函数"
+    ],
+    "pits": [
+      "失败返回 INVALID_HANDLE_VALUE，写 if (!h) 判不出来，会把 -1 当有效句柄。",
+      "dwShareMode 写 0 是独占；文件已被别人打开时失败，GetLastError=ERROR_SHARING_VIOLATION(32)。",
+      "CREATE_ALWAYS 覆盖已有文件时成功但 GetLastError 仍是 ERROR_ALREADY_EXISTS，别据此判失败。"
+    ],
+    "example": "HANDLE h = CreateFileA(\"data.txt\", GENERIC_READ | GENERIC_WRITE,\n                       0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);\nif (h == INVALID_HANDLE_VALUE) {\n  printf(\"CreateFile 失败：%lu\\n\", GetLastError());\n  return 1;\n}\nCloseHandle(h);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea",
+    "since": "Win32"
+  },
+  {
+    "keys": ["ReadFile"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "从文件句柄读一段字节到缓冲区，实际读了多少由输出参数带回。",
+    "sig": "BOOL ReadFile(\n  HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,\n  LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped\n);",
+    "params": [
+      ["hFile", "CreateFileA 打开的句柄，必须有读权限"],
+      ["lpBuffer", "接收数据的缓冲区，容量至少 nNumberOfBytesToRead 字节"],
+      ["nNumberOfBytesToRead", "最多读多少字节，按字节算不是按元素算"],
+      ["lpNumberOfBytesRead", "输出参数，传 &n 接收实际读到的字节数；异步时必须传 NULL"]
+    ],
+    "ret": "成功返回非零；失败返回 0，原因看 GetLastError。",
+    "notes": [
+      "实际读到的字节数可能小于请求值，循环读到 0 字节才算读完",
+      "文件指针随读取前进；用 OVERLAPPED 时读的是结构体里指定的偏移",
+      "读到文件末尾时实际字节数为 0，GetLastError 是 ERROR_HANDLE_EOF(38)"
+    ],
+    "pits": [
+      "lpNumberOfBytesRead 是输出参数，同步读必须传 &n；只有异步 I/O 允许传 NULL。",
+      "只读一次就以为读完了：短读很常见，大文件必须循环读。",
+      "把数据当 C 字符串用之前要自己补结尾的 0，ReadFile 不会加。"
+    ],
+    "example": "char buf[256] = {};\nDWORD got = 0;\nif (!ReadFile(h, buf, sizeof(buf) - 1, &got, NULL)) {\n  printf(\"ReadFile 失败：%lu\\n\", GetLastError());\n  return 1;\n}\nprintf(\"读到 %lu 字节：%s\\n\", got, buf);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile",
+    "since": "Win32"
+  },
+  {
+    "keys": ["WriteFile"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "把缓冲区里的字节写入文件句柄，实际写入量由输出参数带回。",
+    "sig": "BOOL WriteFile(\n  HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,\n  LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped\n);",
+    "params": [
+      ["hFile", "CreateFileA 打开的句柄，必须有写权限"],
+      ["lpBuffer", "要写的数据首地址，按字节原样写出，不含隐式结尾"],
+      ["nNumberOfBytesToWrite", "写多少字节；DWORD 上限约 4GB，更大得分块"],
+      ["lpNumberOfBytesWritten", "输出参数，传 &n 接收实际写入的字节数"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "写入从当前文件指针开始，写完指针自动前移",
+      "管道、异步句柄可能只写一部分，要按已写字节数循环补写",
+      "关句柄不等于落盘，要求持久化得调 FlushFileBuffers"
+    ],
+    "pits": [
+      "以 GENERIC_READ 打开的句柄调用会失败，GetLastError=ERROR_ACCESS_DENIED(5)。",
+      "写字符串时把结尾的 \\0 也算进长度，文件里会多一个字节。",
+      "lpNumberOfBytesWritten 同步写时必须给 &n，只有异步 I/O 允许传 NULL。"
+    ],
+    "example": "const char* text = \"hello\\n\";\nDWORD written = 0;\nif (!WriteFile(h, text, (DWORD)(sizeof(\"hello\\n\") - 1), &written, NULL)) {\n  printf(\"WriteFile 失败：%lu\\n\", GetLastError());\n  return 1;\n}\nprintf(\"写入 %lu 字节\\n\", written);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetFileSizeEx"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取文件的字节大小，64 位返回，不受 4GB 限制。",
+    "sig": "BOOL GetFileSizeEx(HANDLE hFile, PLARGE_INTEGER lpFileSize);",
+    "params": [
+      ["hFile", "文件句柄，要有读属性权限；用 GENERIC_READ 打开就够"],
+      ["lpFileSize", "输出参数，传 &LARGE_INTEGER，大小在 QuadPart 里"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "LARGE_INTEGER 是 union，用 QuadPart 取 64 位值",
+      "只查大小可以用 dwDesiredAccess=0 打开，不必给读写权限",
+      "结果只是一次快照，别的进程可能马上改动文件"
+    ],
+    "pits": [
+      "不判返回值就读 QuadPart，失败时拿到的是未初始化的栈值。",
+      "QuadPart 是 LONGLONG，printf 要用 %lld 并强转 (long long)，用 %d 会截断。"
+    ],
+    "example": "LARGE_INTEGER size = {};\nif (!GetFileSizeEx(h, &size)) return 1;\nprintf(\"文件大小 %lld 字节\\n\", (long long)size.QuadPart);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfilesizeex",
+    "since": "Win32"
+  },
+  {
+    "keys": ["SetFilePointerEx"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "移动文件读写指针，64 位偏移，新位置由输出参数带回。",
+    "sig": "BOOL SetFilePointerEx(\n  HANDLE hFile, LARGE_INTEGER liDistanceToMove,\n  PLARGE_INTEGER lpNewFilePointer, DWORD dwMoveMethod\n);",
+    "params": [
+      ["hFile", "文件句柄"],
+      ["liDistanceToMove", "移动多少字节，按值传结构体不是指针；负数表示往回移"],
+      ["lpNewFilePointer", "输出参数，接收移动后的绝对偏移，不需要就传 NULL"],
+      ["dwMoveMethod", "FILE_BEGIN 从文件头、FILE_CURRENT 从当前位置、FILE_END 从末尾算"]
+    ],
+    "ret": "成功返回非零；失败返回 0。新位置看 lpNewFilePointer，不看返回值。",
+    "notes": [
+      "偏移要先写 li.QuadPart，直接传整数编不过",
+      "定位到末尾再 WriteFile 就是追加，不需要额外打开模式",
+      "移动指针不改变文件大小，截断要用 SetEndOfFile"
+    ],
+    "pits": [
+      "第二个参数是结构体按值传，写成 SetFilePointerEx(h, 100, ...) 编译不过。",
+      "只把指针移到末尾不会扩容，紧接着读只会得到 0 字节。"
+    ],
+    "example": "LARGE_INTEGER off = {};\noff.QuadPart = 10;\nif (!SetFilePointerEx(h, off, NULL, FILE_BEGIN)) return 1;\nchar buf[16] = {};\nDWORD got = 0;\nReadFile(h, buf, sizeof(buf) - 1, &got, NULL);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex",
+    "since": "Win32"
+  },
+  {
+    "keys": ["MoveFileA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "重命名或移动文件、目录；同卷只改目录项，不搬数据。",
+    "sig": "BOOL MoveFileA(LPCSTR lpExistingFileName, LPCSTR lpNewFileName);",
+    "params": [
+      ["lpExistingFileName", "源路径，文件或目录都可以"],
+      ["lpNewFileName", "目标路径，调用时必须不存在"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "同卷移动瞬间完成；跨卷会失败，要自己复制再删",
+      "要覆盖已有目标用 MoveFileExA 加 MOVEFILE_REPLACE_EXISTING",
+      "目标父目录必须已存在，它不会替你建中间目录"
+    ],
+    "pits": [
+      "跨盘移动失败码是 ERROR_NOT_SAME_DEVICE(17)，不是权限问题。",
+      "目标已存在时直接失败（ERROR_ALREADY_EXISTS），不会静默覆盖。"
+    ],
+    "example": "if (!MoveFileA(\"old.txt\", \"new.txt\")) {\n  printf(\"移动失败：%lu\\n\", GetLastError());\n  return 1;\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefilea",
+    "since": "Win32"
+  },
+  {
+    "keys": ["DeleteFileA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "删除一个文件；目录要用 RemoveDirectoryA。",
+    "sig": "BOOL DeleteFileA(LPCSTR lpFileName);",
+    "params": [
+      ["lpFileName", "要删的文件路径，不支持通配符"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "只读文件删不掉，先 SetFileAttributesA 清掉只读位",
+      "文件被打开且没共享删除权限时失败，错误码 ERROR_SHARING_VIOLATION",
+      "有句柄开着时只是标记删除，最后一个句柄关闭才真正消失"
+    ],
+    "pits": [
+      "路径不存在时返回 ERROR_FILE_NOT_FOUND(2)，批量删除前先判存在。",
+      "把目录路径传进来会失败，得用 RemoveDirectoryA。"
+    ],
+    "example": "if (!DeleteFileA(\"temp.txt\")) {\n  printf(\"删除失败：%lu\\n\", GetLastError());\n  return 1;\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-deletefilea",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CopyFileA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "复制文件到新路径，可指定目标已存在时是否覆盖。",
+    "sig": "BOOL CopyFileA(LPCSTR lpExistingFileName, LPCSTR lpNewFileName, BOOL bFailIfExists);",
+    "params": [
+      ["lpExistingFileName", "源文件路径"],
+      ["lpNewFileName", "目标文件路径，父目录必须已存在"],
+      ["bFailIfExists", "TRUE 目标已存在就失败；FALSE 直接覆盖"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "源文件的属性会一起复制，只读文件复制出来还是只读",
+      "覆盖时先截断目标再写，中途失败目标原内容已毁",
+      "大文件复制会阻塞调用线程，要进度提示得另开线程"
+    ],
+    "pits": [
+      "bFailIfExists 传 TRUE 且目标存在时失败，GetLastError=ERROR_FILE_EXISTS(80)。",
+      "目标目录不存在直接失败，它不会递归创建目录。"
+    ],
+    "example": "if (!CopyFileA(\"src.txt\", \"dst.txt\", FALSE)) {\n  printf(\"复制失败：%lu\\n\", GetLastError());\n  return 1;\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-copyfilea",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CreateDirectoryA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "创建一个目录，只建最后一级，父目录必须已存在。",
+    "sig": "BOOL CreateDirectoryA(LPCSTR lpPathName, LPSECURITY_ATTRIBUTES lpSecurityAttributes);",
+    "params": [
+      ["lpPathName", "新目录路径，反斜杠或斜杠都可以"],
+      ["lpSecurityAttributes", "安全属性，一般传 NULL 用默认"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "目录已存在时失败，GetLastError=ERROR_ALREADY_EXISTS(183)",
+      "多层目录用 SHCreateDirectoryExA 或 std::filesystem::create_directories",
+      "安全属性传 NULL 时，新目录的 ACL 继承自父目录"
+    ],
+    "pits": [
+      "父目录不存在时返回 ERROR_PATH_NOT_FOUND(3)，不会自动补齐。",
+      "把「已存在」当失败会让重复运行的程序第一次之后就报错，要单独放行 183。"
+    ],
+    "example": "if (!CreateDirectoryA(\"out\", NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {\n  printf(\"建目录失败：%lu\\n\", GetLastError());\n  return 1;\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createdirectorya",
+    "since": "Win32"
+  },
+  {
+    "keys": ["RemoveDirectoryA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "删除一个空目录；目录里还有东西就失败。",
+    "sig": "BOOL RemoveDirectoryA(LPCSTR lpPathName);",
+    "params": [
+      ["lpPathName", "要删的目录路径，必须为空"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "非空目录失败码是 ERROR_DIR_NOT_EMPTY(145)",
+      "目录被别的进程当工作目录时删不掉",
+      "递归删除要自己遍历，或用 std::filesystem::remove_all"
+    ],
+    "pits": [
+      "当成 rm -r 用会失败，子文件和子目录必须先清干净。",
+      "路径指到文件上会失败，它只处理目录。"
+    ],
+    "example": "if (!RemoveDirectoryA(\"out\")) {\n  printf(\"删目录失败：%lu\\n\", GetLastError());\n  return 1;\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-removedirectorya",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetFileAttributesA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取文件或目录的属性位，也能判断路径是否存在、是不是目录。",
+    "sig": "DWORD GetFileAttributesA(LPCSTR lpFileName);",
+    "params": [
+      ["lpFileName", "文件或目录路径，不用先打开句柄"]
+    ],
+    "ret": "成功返回 FILE_ATTRIBUTE_* 位掩码；失败返回 INVALID_FILE_ATTRIBUTES，即 (DWORD)-1。",
+    "notes": [
+      "判目录：attrs & FILE_ATTRIBUTE_DIRECTORY 非零",
+      "判存在：返回值 != INVALID_FILE_ATTRIBUTES",
+      "属性是位掩码，一个路径可以同时只读、隐藏、是目录"
+    ],
+    "pits": [
+      "失败值是 0xFFFFFFFF 不是 0，if (!attrs) 这种写法永远判不出失败。",
+      "不先排除 INVALID_FILE_ATTRIBUTES 就做位与，0xFFFFFFFF 会被误判成目录。"
+    ],
+    "example": "DWORD attrs = GetFileAttributesA(\"data\");\nif (attrs == INVALID_FILE_ATTRIBUTES) return 1;\nif (attrs & FILE_ATTRIBUTE_DIRECTORY) printf(\"是目录\\n\");",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfileattributesa",
+    "since": "Win32"
+  },
+  {
+    "keys": ["FindFirstFileA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "按通配符找第一个匹配项，返回查找句柄供 FindNextFileA 继续。",
+    "sig": "HANDLE FindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATAA lpFindFileData);",
+    "params": [
+      ["lpFileName", "可带 * 和 ? 的路径；传目录路径表示枚举该目录下全部"],
+      ["lpFindFileData", "输出参数，调用者提供 WIN32_FIND_DATAA，第一个匹配写进来"]
+    ],
+    "ret": "成功返回查找句柄；没有匹配或出错返回 INVALID_HANDLE_VALUE。",
+    "notes": [
+      "查找句柄必须用 FindClose 关，CloseHandle 不管它",
+      "用 * 枚举目录时会先出现 . 和 .. 两项，通常要跳过",
+      "cFileName 只有文件名，拼完整路径要自己接目录"
+    ],
+    "pits": [
+      "没匹配时也返回 INVALID_HANDLE_VALUE，GetLastError=ERROR_FILE_NOT_FOUND(2)，按空结果处理。",
+      "句柄不关会泄漏，枚举大量目录后系统句柄耗尽，后续调用全失败。"
+    ],
+    "example": "WIN32_FIND_DATAA fd = {};\nHANDLE hFind = FindFirstFileA(\"*.txt\", &fd);\nif (hFind == INVALID_HANDLE_VALUE) return 1;\ndo {\n  printf(\"%s\\n\", fd.cFileName);\n} while (FindNextFileA(hFind, &fd));\nFindClose(hFind);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfilea",
+    "since": "Win32"
+  },
+  {
+    "keys": ["FindNextFileA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "继续 FindFirstFileA 的枚举，取下一个匹配项。",
+    "sig": "BOOL FindNextFileA(HANDLE hFindFile, LPWIN32_FIND_DATAA lpFindFileData);",
+    "params": [
+      ["hFindFile", "FindFirstFileA 返回的查找句柄"],
+      ["lpFindFileData", "输出参数，同一块结构体，每轮被覆盖"]
+    ],
+    "ret": "还有匹配返回非零；枚举结束或出错返回 0。",
+    "notes": [
+      "返回 0 后查 GetLastError：ERROR_NO_MORE_FILES 是正常结束",
+      "第一个匹配已经由 FindFirstFileA 取出，循环要先处理再调它",
+      "结构体每轮被覆盖，要留文件名就自己拷一份"
+    ],
+    "pits": [
+      "while 循环结束后不查 GetLastError，会把真实错误当枚举完成。",
+      "do-while 写错成先调 FindNextFileA，会漏掉第一个文件。"
+    ],
+    "example": "WIN32_FIND_DATAA fd = {};\nHANDLE h = FindFirstFileA(\"*.log\", &fd);\nif (h == INVALID_HANDLE_VALUE) return 1;\ndo { printf(\"%s\\n\", fd.cFileName); } while (FindNextFileA(h, &fd));\nFindClose(h);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findnextfilea",
+    "since": "Win32"
+  },
+  {
+    "keys": ["FindClose"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "关闭查找句柄，释放 FindFirstFileA 打开的枚举状态。",
+    "sig": "BOOL FindClose(HANDLE hFindFile);",
+    "params": [
+      ["hFindFile", "FindFirstFileA 返回的句柄，不能是 INVALID_HANDLE_VALUE"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "和 CloseHandle 不是一回事，查找句柄只能用 FindClose",
+      "关闭后句柄失效，继续 FindNextFileA 会失败",
+      "函数中途 return 也要先 FindClose，别只写在末尾"
+    ],
+    "pits": [
+      "用 CloseHandle 关查找句柄是错的，句柄类型不同。",
+      "对 INVALID_HANDLE_VALUE 调它也会失败，关之前先判一次。"
+    ],
+    "example": "WIN32_FIND_DATAA fd = {};\nHANDLE h = FindFirstFileA(\"*.txt\", &fd);\nif (h != INVALID_HANDLE_VALUE) {\n  FindClose(h);\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findclose",
+    "since": "Win32"
+  },
+  {
+    "keys": ["WIN32_FIND_DATAA"],
+    "scope": "Windows API",
+    "kind": "类型",
+    "brief": "FindFirstFileA/FindNextFileA 的输出结构，装一个目录项的名字、属性和时间。",
+    "sig": "typedef struct _WIN32_FIND_DATAA {\n  DWORD dwFileAttributes;\n  FILETIME ftCreationTime, ftLastAccessTime, ftLastWriteTime;\n  DWORD nFileSizeHigh, nFileSizeLow;\n  DWORD dwReserved0, dwReserved1;\n  CHAR cFileName[MAX_PATH];\n  CHAR cAlternateFileName[14];\n} WIN32_FIND_DATAA;",
+    "notes": [
+      "cFileName 是定长 CHAR[MAX_PATH] 数组，不是 std::string，赋值用 strcpy",
+      "大小 = (nFileSizeHigh << 32) | nFileSizeLow；目录项这两位是 0",
+      "A 版结构配 A 版函数，和 WIN32_FIND_DATAW 不能混用"
+    ],
+    "pits": [
+      "判断目录只能看 dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY，名字里带不带点说明不了。",
+      "cFileName 只有文件名没有路径，拼路径要自己补反斜杠和目录前缀。",
+      "下一轮 FindNextFileA 会覆盖整个结构体，要留下就拷贝 cFileName。"
+    ],
+    "example": "WIN32_FIND_DATAA fd = {};\nHANDLE h = FindFirstFileA(\"*.txt\", &fd);\nif (h == INVALID_HANDLE_VALUE) return 1;\nlong long size = ((long long)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;\nprintf(\"%s %lld\\n\", fd.cFileName, size);\nFindClose(h);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataa",
+    "since": "Win32"
+  },
+  {
+    "keys": ["INVALID_HANDLE_VALUE"],
+    "scope": "Windows API",
+    "kind": "宏",
+    "brief": "句柄类 API 失败时返回的哨兵值，等于 (HANDLE)-1，不是 NULL。",
+    "sig": "#define INVALID_HANDLE_VALUE ((HANDLE)(LONG_PTR)-1)",
+    "notes": [
+      "64 位上展开成全 1 的 64 位值，永远不等于 NULL",
+      "CreateFileA、FindFirstFileA、GetStdHandle 失败都返回它",
+      "具体原因查 GetLastError"
+    ],
+    "pits": [
+      "和 NULL 比较永远不相等，判失败要写 h == INVALID_HANDLE_VALUE。",
+      "CreateFileMappingA、OpenProcess 失败返回 NULL，两类约定别记混。"
+    ],
+    "example": "HANDLE h = CreateFileA(\"a.txt\", GENERIC_READ, 0, NULL,\n                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);\nif (h == INVALID_HANDLE_VALUE) {\n  printf(\"err %lu\\n\", GetLastError());\n}",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GENERIC_READ"],
+    "scope": "Windows API",
+    "kind": "宏",
+    "brief": "CreateFile 的通用读权限位，打开后可 ReadFile、查文件属性。",
+    "sig": "#define GENERIC_READ 0x80000000L",
+    "notes": [
+      "和 GENERIC_WRITE 按位或得到读写句柄",
+      "只给读权限的句柄调 WriteFile 会失败",
+      "打开目录还要加 FILE_FLAG_BACKUP_SEMANTICS"
+    ],
+    "pits": [
+      "只读句柄调 WriteFile 的失败码是 ERROR_ACCESS_DENIED(5)。",
+      "读权限和文件只读属性是两回事，只读文件照样能用 GENERIC_READ 打开。"
+    ],
+    "example": "HANDLE h = CreateFileA(\"a.txt\", GENERIC_READ, FILE_SHARE_READ,\n                       NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);\nif (h != INVALID_HANDLE_VALUE) CloseHandle(h);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/secauthz/generic-access-rights",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GENERIC_WRITE"],
+    "scope": "Windows API",
+    "kind": "宏",
+    "brief": "CreateFile 的通用写权限位，打开后可 WriteFile、改文件内容。",
+    "sig": "#define GENERIC_WRITE 0x40000000L",
+    "notes": [
+      "单独用它打开时没有读权限，ReadFile 会失败",
+      "读写都要就给 GENERIC_READ | GENERIC_WRITE",
+      "改文件长度还要配 SetEndOfFile"
+    ],
+    "pits": [
+      "只给写权限的句柄调 ReadFile，失败码 ERROR_ACCESS_DENIED(5)。",
+      "对不存在的文件用 OPEN_EXISTING 加它必失败，要换 CREATE_ALWAYS 或 OPEN_ALWAYS。"
+    ],
+    "example": "HANDLE h = CreateFileA(\"out.txt\", GENERIC_WRITE, 0, NULL,\n                       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);\nif (h != INVALID_HANDLE_VALUE) CloseHandle(h);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/secauthz/generic-access-rights",
+    "since": "Win32"
+  },
+  {
+    "keys": ["OPEN_EXISTING"],
+    "scope": "Windows API",
+    "kind": "宏",
+    "brief": "CreateFile 的打开方式：文件必须已存在，不存在就失败。",
+    "sig": "#define OPEN_EXISTING 3",
+    "notes": [
+      "打开设备、管道、目录基本只能用这个值",
+      "不会截断已有内容，读写位置从文件头开始",
+      "文件不存在时 GetLastError=ERROR_FILE_NOT_FOUND(2)"
+    ],
+    "pits": [
+      "想新建文件却写 OPEN_EXISTING，第一次运行就失败。",
+      "打开目录还要加 FILE_FLAG_BACKUP_SEMANTICS，否则 ERROR_ACCESS_DENIED。"
+    ],
+    "example": "HANDLE h = CreateFileA(\"cfg.ini\", GENERIC_READ, FILE_SHARE_READ,\n                       NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);",
+    "since": "Win32"
+  },
+  {
+    "keys": ["CREATE_ALWAYS"],
+    "scope": "Windows API",
+    "kind": "宏",
+    "brief": "CreateFile 的打开方式：总是新建，已存在就清空重写。",
+    "sig": "#define CREATE_ALWAYS 2",
+    "notes": [
+      "已存在时内容被截断为 0 字节，原数据不保留",
+      "成功覆盖时 GetLastError 仍可能是 ERROR_ALREADY_EXISTS(183)",
+      "不想覆盖已有文件用 CREATE_NEW"
+    ],
+    "pits": [
+      "拿它当「有就打开、没有就建」会丢数据，那种语义是 OPEN_ALWAYS。",
+      "它成功也可能把 GetLastError 置成 183，不能用 GetLastError 判成败。"
+    ],
+    "example": "HANDLE h = CreateFileA(\"log.txt\", GENERIC_WRITE, 0, NULL,\n                       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);",
+    "since": "Win32"
+  },
+  {
+    "keys": ["FILE_ATTRIBUTE_NORMAL"],
+    "scope": "Windows API",
+    "kind": "宏",
+    "brief": "CreateFile 的默认文件属性：没有只读、隐藏、系统等特殊位。",
+    "sig": "#define FILE_ATTRIBUTE_NORMAL 0x80",
+    "notes": [
+      "文档明确它只在单独使用时有效",
+      "普通文件读写都传它，别的属性位会和它冲突",
+      "要设只读、隐藏，创建后用 SetFileAttributesA"
+    ],
+    "pits": [
+      "和 FILE_ATTRIBUTE_HIDDEN 或起来不合法，不要指望生成隐藏文件。",
+      "只读文件用 CREATE_ALWAYS 打开会失败，得先清只读属性。"
+    ],
+    "example": "HANDLE h = CreateFileA(\"out.txt\", GENERIC_WRITE, 0, NULL,\n                       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants",
+    "since": "Win32"
+  },
+  {
+    "keys": ["GetStdHandle"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "取当前进程的标准输入、输出或错误句柄。",
+    "sig": "HANDLE GetStdHandle(DWORD nStdHandle);",
+    "params": [
+      ["nStdHandle", "STD_INPUT_HANDLE(-10)、STD_OUTPUT_HANDLE(-11)、STD_ERROR_HANDLE(-12)"]
+    ],
+    "ret": "成功返回句柄；失败返回 INVALID_HANDLE_VALUE；进程没有标准句柄时返回 NULL。",
+    "notes": [
+      "句柄归进程所有，不需要也不能随手 CloseHandle",
+      "输出被重定向时返回的是文件或管道句柄",
+      "每次用时重新取，SetStdHandle 之后旧值不再代表标准输出"
+    ],
+    "pits": [
+      "只判 INVALID_HANDLE_VALUE 不够，GUI 程序里它可能是 NULL。",
+      "对返回的句柄调 CloseHandle 会把标准输出关掉，后续写全部失败。"
+    ],
+    "example": "HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);\nif (hOut == INVALID_HANDLE_VALUE || hOut == NULL) return 1;\nDWORD written = 0;\nWriteConsoleA(hOut, \"hi\\n\", 3, &written, NULL);",
+    "link": "https://learn.microsoft.com/en-us/windows/console/getstdhandle",
+    "since": "Win32"
+  },
+  {
+    "keys": ["STD_OUTPUT_HANDLE"],
+    "scope": "Windows API",
+    "kind": "宏",
+    "brief": "传给 GetStdHandle 的常量，表示标准输出设备。",
+    "sig": "#define STD_OUTPUT_HANDLE ((DWORD)-11)",
+    "notes": [
+      "同类：STD_INPUT_HANDLE=-10、STD_ERROR_HANDLE=-12",
+      "展开后是 4294967285 这样的无符号数，不是句柄",
+      "它只是 GetStdHandle 的参数，不能直接给 WriteFile"
+    ],
+    "pits": [
+      "直接把它当句柄传进 WriteConsoleA 会失败，先过 GetStdHandle。",
+      "写成正数 11 不行，GetStdHandle 只认 -11 转成的无符号值。"
+    ],
+    "example": "HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);\nDWORD n = 0;\nWriteConsoleA(hOut, \"ok\\n\", 3, &n, NULL);",
+    "link": "https://learn.microsoft.com/en-us/windows/console/getstdhandle",
+    "since": "Win32"
+  },
+  {
+    "keys": ["WriteConsoleA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "把字符写到控制台屏幕缓冲区，按当前输出代码页解释字节。",
+    "sig": "BOOL WriteConsoleA(\n  HANDLE hConsoleOutput, const VOID* lpBuffer,\n  DWORD nNumberOfCharsToWrite, LPDWORD lpNumberOfCharsWritten,\n  LPVOID lpReserved\n);",
+    "params": [
+      ["hConsoleOutput", "控制台屏幕缓冲区句柄，要有写权限"],
+      ["lpBuffer", "要写的字符数组，不必以 0 结尾"],
+      ["nNumberOfCharsToWrite", "写多少个字符；A 版一个 char 算一个"],
+      ["lpNumberOfCharsWritten", "输出参数，实际写出的字符数，可以传 NULL"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "只认控制台句柄；句柄被重定向到文件时必须改用 WriteFile",
+      "最后参数是保留位，必须传 NULL",
+      "从当前光标位置写，不自动换行，光标随写入前移"
+    ],
+    "pits": [
+      "标准输出重定向到文件后再调用会失败，错误码 ERROR_INVALID_HANDLE(6)。",
+      "源码 UTF-8 而控制台代码页是 936 时中文变乱码，先 SetConsoleOutputCP(CP_UTF8)。"
+    ],
+    "example": "HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);\nDWORD n = 0;\nWriteConsoleA(hOut, \"hello\\n\", 6, &n, NULL);",
+    "link": "https://learn.microsoft.com/en-us/windows/console/writeconsole",
+    "since": "Win32"
+  },
+  {
+    "keys": ["SetConsoleOutputCP"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "设置控制台输出代码页，让 UTF-8 字节按 UTF-8 解释。",
+    "sig": "BOOL SetConsoleOutputCP(UINT wCodePageID);",
+    "params": [
+      ["wCodePageID", "代码页 ID：65001=UTF-8、936=GBK、0=系统 ANSI 代码页"]
+    ],
+    "ret": "成功返回非零；失败返回 0。",
+    "notes": [
+      "只管输出，输入代码页要用 SetConsoleCP",
+      "对当前进程附加的控制台生效，没有控制台时调用失败",
+      "进程退出后代码页不会自动还原"
+    ],
+    "pits": [
+      "进程没有控制台时（GUI 子系统或父进程没给）调用会失败，别拿返回值当装饰。",
+      "源码存成 GBK 却设 65001 会更乱，源码编码和代码页要对齐。"
+    ],
+    "example": "SetConsoleOutputCP(CP_UTF8);\nprintf(\"中文测试\\n\");",
+    "link": "https://learn.microsoft.com/en-us/windows/console/setconsoleoutputcp",
+    "since": "Win32"
+  },
+  {
+    "keys": ["MessageBoxA"],
+    "scope": "Windows API",
+    "kind": "函数",
+    "brief": "弹一个模态消息框，阻塞到用户点按钮，返回按钮 ID。",
+    "sig": "int MessageBoxA(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType);",
+    "params": [
+      ["hWnd", "父窗口句柄，没有窗口传 NULL"],
+      ["lpText", "正文，可以带换行"],
+      ["lpCaption", "标题栏文字，传 NULL 用默认标题"],
+      ["uType", "按钮和图标的组合，如 MB_OK | MB_ICONERROR"]
+    ],
+    "ret": "成功返回按钮 ID：IDOK=1、IDYES=6、IDNO=7；失败返回 0。",
+    "notes": [
+      "模态：不点掉它，调用线程一直停在 MessageBoxA 里",
+      "标题和正文都是 ANSI 字符串，中文受当前代码页影响",
+      "宽字符场景用 MessageBoxW，字面量要加 L 前缀"
+    ],
+    "pits": [
+      "返回 0 是失败，不是「点了确定」，IDOK 的值是 1。",
+      "拿它当日志会卡住程序，无人值守时永远等不到点击。",
+      "源码是 UTF-8 时 MessageBoxA 容易显示乱码，改用 MessageBoxW。"
+    ],
+    "example": "int r = MessageBoxA(NULL, \"保存成功\", \"提示\", MB_OK | MB_ICONINFORMATION);\nif (r == IDOK) {\n  printf(\"用户点了确定\\n\");\n}",
+    "link": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messageboxa",
+    "since": "Win32"
+  }
+]

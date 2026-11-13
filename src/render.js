@@ -8,6 +8,7 @@ function linkLabel(link) {
     if (host === 'zh.cppreference.com') return '中文文档（cppreference）';
     if (host === 'en.cppreference.com') return '英文文档（cppreference）';
     if (host === 'learn.microsoft.com') return '微软文档';
+    if (host === 'man7.org') return 'Linux man 手册（英文）';
     return '文档';
   } catch (_) {
     return '文档';

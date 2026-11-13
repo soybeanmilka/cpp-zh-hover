@@ -1,8 +1,8 @@
 {
   "name": "cpp-zh-hover",
   "displayName": "C++ 中文接口提示",
-  "description": "鼠标悬停在 C++ 接口上显示中文解释：一句话说明、签名、参数、返回值、复杂度、常见坑与示例。本地词条，离线可用。",
-  "version": "0.1.0",
+  "description": "鼠标悬停在 C++ 接口上显示中文解释：一句话说明、签名、参数、返回值、复杂度、常见坑与示例。本地词条，离线可用，覆盖 STL、并发、文件系统、Linux socket 与 Win32。",
+  "version": "0.2.0",
   "publisher": "cxly",
   "license": "MIT",
   "repository": {

@@ -14,7 +14,7 @@ const DATA_DIR = path.join(ROOT, 'data');
 const KINDS = new Set([
   '头文件', '类', '成员函数', '函数', '关键字', '类型', '对象', '宏', '命名空间', '运算符', '特性',
 ]);
-const LINK_HOSTS = new Set(['zh.cppreference.com', 'en.cppreference.com', 'learn.microsoft.com']);
+const LINK_HOSTS = new Set(['zh.cppreference.com', 'en.cppreference.com', 'learn.microsoft.com', 'man7.org']);
 const FIELDS = new Set([
   'keys', 'scope', 'kind', 'brief', 'sig', 'params', 'ret', 'notes', 'pits', 'example', 'link', 'since',
 ]);

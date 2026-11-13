@@ -1,0 +1,1065 @@
+[
+  {
+    "keys": ["filesystem"],
+    "kind": "命名空间",
+    "scope": "std",
+    "brief": "C++17 标准库的文件系统命名空间：路径、遍历、增删改查都在这里。",
+    "sig": "namespace std::filesystem;\n// 常用别名\nnamespace fs = std::filesystem;",
+    "notes": [
+      "头文件 <filesystem>，C++17 起可用；GCC 8 及更早要额外链接 -lstdc++fs。",
+      "多数操作有抛异常版和带 std::error_code 的不抛版两个重载。",
+      "入口类型是 fs::path，字符串可以隐式转成 path。"
+    ],
+    "pits": [
+      "别写 using namespace std::filesystem;，remove/copy 会和 <algorithm> 的同名算法混在一起，读代码分不清。",
+      "fs::path 的构造和拼接都不访问磁盘，路径写错当场不报错，要到 exists/file_size 这类操作才炸。",
+      "相对路径一律按 current_path() 解析，程序改过工作目录后同一个字符串就指向别处。"
+    ],
+    "example": "namespace fs = std::filesystem;\nfs::path p = \"data/log.txt\";\nif (fs::exists(p))\n    std::cout << fs::file_size(p) << \" 字节\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem",
+    "since": "C++17"
+  },
+  {
+    "keys": ["path"],
+    "kind": "类",
+    "scope": "std::filesystem",
+    "brief": "文件系统路径类型：保存路径字符串，并提供分解、拼接、规范化操作。",
+    "sig": "class path;\npath p = \"a/b\";\npath p2(\"a\", \"b\");",
+    "notes": [
+      "只是字符串封装，构造和拼接都不查磁盘、不要求路径存在。",
+      "Windows 上内部存 wchar_t，Linux 上存 char；string() 返回原生窄串。",
+      "成员函数分四类：分解（filename/extension）、拼接（/=）、比较、转换。"
+    ],
+    "pits": [
+      "Windows 下 path(std::string) 按当前代码页解释字节，源码里 UTF-8 写的中文路径会变成乱码。",
+      "string() 把宽字符转成本地窄编码，非 ASCII 路径可能直接抛 filesystem_error，要稳妥用 u8string()。",
+      "不同平台分隔符不同，拼接别手写反斜杠，用 operator/ 或 /=。"
+    ],
+    "example": "namespace fs = std::filesystem;\nfs::path p = \"D:/proj\";\np /= \"src/main.cpp\";\nstd::cout << p.string() << \"\\n\";     // D:/proj/src/main.cpp\nstd::cout << p.filename().string();  // main.cpp",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path",
+    "since": "C++17"
+  },
+  {
+    "keys": ["directory_entry"],
+    "kind": "类",
+    "scope": "std::filesystem",
+    "brief": "目录遍历返回的单个条目，带路径并缓存部分状态信息。",
+    "sig": "class directory_entry;\nconst path& path() const noexcept;",
+    "notes": [
+      "隐式转换成 const path&，所以能直接当路径传给 exists、file_size 等函数。",
+      "状态（是否目录、大小、时间）是条目构造时抓的缓存，文件后来变了要调 refresh()。",
+      "operator-> 返回 const directory_entry*，所以 it->path() 和 (*it).path() 等价。"
+    ],
+    "pits": [
+      "path() 返回条目内部成员的引用，把 const path& 存下来再 ++ 迭代器，引用就悬垂了。",
+      "缓存不是实时的，遍历过程中新建的文件不会出现在已经发出去的条目里。",
+      "条目只代表一条路径，filename() 只有最后一段，要完整路径得用 path()。"
+    ],
+    "example": "for (const auto& e : fs::directory_iterator(\"data\")) {\n    std::cout << e.path().filename().string() << \"\\n\";\n    if (e.is_directory()) std::cout << \"  [目录]\\n\";\n}",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/directory_entry",
+    "since": "C++17"
+  },
+  {
+    "keys": ["directory_iterator"],
+    "kind": "类",
+    "scope": "std::filesystem",
+    "brief": "单层目录迭代器：构造即打开目录，解引用得到 directory_entry。",
+    "sig": "directory_iterator(const path& p);\ndirectory_iterator(const path& p, directory_options opts);\ndirectory_iterator(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要遍历的目录，不能是普通文件"],
+      ["opts", "目录选项，如 skip_permission_denied、follow_directory_symlink"],
+      ["ec", "错误码输出参数，传了它构造函数就不抛异常"]
+    ],
+    "notes": [
+      "输入迭代器，只能单遍遍历；遍历顺序由系统决定，别依赖文件名排序。",
+      "默认构造的迭代器就是 end，拿来当循环条件。",
+      "每次 ++ 都要重新读一个目录项，超大目录时是实打实的系统调用开销。"
+    ],
+    "pits": [
+      "构造时目录不存在或没权限就抛 filesystem_error，空目录反而是合法的；怕抛就传 error_code 重载。",
+      "构造出来后目录被删或被改，继续 ++ 的行为未定义，可能抛异常也可能漏项。",
+      "不做递归，想进子目录要么自己递归，要么换 recursive_directory_iterator。"
+    ],
+    "example": "for (const auto& e : fs::directory_iterator(\"data\")) {\n    if (e.path().extension() == \".txt\")\n        std::cout << e.path().string() << \"\\n\";\n}",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/directory_iterator",
+    "since": "C++17"
+  },
+  {
+    "keys": ["recursive_directory_iterator"],
+    "kind": "类",
+    "scope": "std::filesystem",
+    "brief": "递归目录迭代器：深度优先走完整棵目录树，能取深度、能跳过子树。",
+    "sig": "recursive_directory_iterator(const path& p);\nrecursive_directory_iterator(const path& p, directory_options opts);",
+    "params": [
+      ["p", "起始目录，条目从它下面开始给，不含它自己"],
+      ["opts", "目录选项，常见 skip_permission_denied"]
+    ],
+    "notes": [
+      "深度优先：进子目录时 depth() 加一，pop() 手动退回上一层。",
+      "disable_recursion_pending() 让本次不进入当前目录，用来跳过整棵子树。",
+      "顺序同样由系统决定，先父后子不代表兄弟之间有序。"
+    ],
+    "pits": [
+      "depth()、disable_recursion_pending() 是迭代器成员，不是 directory_entry 的，写 entry.depth() 编不过。",
+      "默认不跟进符号链接；加了 follow_directory_symlink 后，互相指向的链接会无限递归卡死。",
+      "遇到没权限的子目录默认抛异常，整个遍历中断，构造时传 skip_permission_denied 才会跳过。"
+    ],
+    "example": "for (auto it = fs::recursive_directory_iterator(\"src\");\n     it != fs::recursive_directory_iterator(); ++it) {\n    std::cout << it.depth() << \" \" << it->path().filename().string() << \"\\n\";\n    if (it->path().filename() == \".git\") it.disable_recursion_pending();\n}",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/recursive_directory_iterator",
+    "since": "C++17"
+  },
+  {
+    "keys": ["filesystem_error"],
+    "kind": "类",
+    "scope": "std::filesystem",
+    "brief": "文件系统操作失败时抛出的异常，带出错路径和平台错误码。",
+    "sig": "class filesystem_error : public std::system_error;\nconst path& path1() const noexcept;\nconst path& path2() const noexcept;",
+    "notes": [
+      "继承 std::system_error，code() 拿平台错误码，what() 是拼好的描述文字。",
+      "path1()、path2() 是这次操作涉及的路径，双参数操作（rename/copy）两个都有。",
+      "带 error_code 的重载不抛异常，只有不带的重载才抛。"
+    ],
+    "pits": [
+      "Windows 上 code().value() 是 Win32 错误码（5 = 拒绝访问），别拿它和 Linux 的 errno 数值直接比。",
+      "what() 里的系统消息是 GBK 窄串，在 UTF-8 控制台里会乱码；排错看 code().value() 和 path1()。",
+      "跨平台判断错误原因用 e.code() == std::errc::permission_denied，比数值在 Windows 上对不上。"
+    ],
+    "example": "try {\n    fs::remove_all(\"no/such/dir\");\n} catch (const fs::filesystem_error& e) {\n    std::cout << e.code().value() << \" \" << e.path1().string() << \"\\n\";\n}",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/filesystem_error",
+    "since": "C++17"
+  },
+  {
+    "keys": ["file_status"],
+    "kind": "类",
+    "scope": "std::filesystem",
+    "brief": "文件类型与权限位的轻量快照，由 status()/symlink_status() 返回。",
+    "sig": "class file_status;\nfile_type type() const noexcept;\nperms permissions() const noexcept;",
+    "notes": [
+      "type() 是 file_type：regular、directory、symlink、not_found、unknown 等。",
+      "status() 跟随符号链接，symlink_status() 看链接本身。",
+      "文件不存在时 status() 返回 not_found，这是正常返回值不是错误。"
+    ],
+    "pits": [
+      "判断存在别写 status(p).type() != file_type::not_found 绕一圈，直接用 exists() 更清楚。",
+      "type() 是 unknown 表示系统没给出类型（某些网络盘、特殊设备），别当成普通文件处理。",
+      "权限位在 Windows 上只有只读位有意义，读到的其他位不代表真实 ACL。"
+    ],
+    "example": "fs::file_status st = fs::status(\"a.txt\");\nif (st.type() == fs::file_type::regular)\n    std::cout << \"普通文件\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/file_status",
+    "since": "C++17"
+  },
+  {
+    "keys": ["file_time_type"],
+    "kind": "类型",
+    "scope": "std::filesystem",
+    "brief": "文件时间戳类型，last_write_time 的返回值和参数都用它。",
+    "sig": "using file_time_type = std::chrono::time_point</* 未指定时钟 */>;",
+    "notes": [
+      "底层时钟由实现决定，C++17 里没有公开名字，C++20 才叫 file_clock。",
+      "不能直接和 system_clock::now() 比大小，也不能直接赋给 system_clock::time_point。",
+      "精度随平台变：Windows 100ns，Linux 常见纳秒，FAT32 只有 2 秒。"
+    ],
+    "pits": [
+      "C++17 想转成日历时间只能用 clock::now() 和 system_clock::now() 做差值偏移，跨机器不可靠。",
+      "不同平台 epoch 不同，把它转成整数存文件再跨平台读会得到错误时间。",
+      "自己算出来的期望值和文件系统存下来的值往往有精度差，判等要留容差。"
+    ],
+    "example": "auto t = fs::last_write_time(\"a.txt\");\nfs::last_write_time(\"a.txt\", t + std::chrono::hours(24));\nstd::cout << t.time_since_epoch().count() << \"\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/file_time_type",
+    "since": "C++17"
+  },
+  {
+    "keys": ["directory_options"],
+    "kind": "类型",
+    "scope": "std::filesystem",
+    "brief": "目录遍历的选项枚举：是否跟进符号链接、是否跳过权限错误。",
+    "sig": "enum class directory_options : unsigned char {\n    none = 0,\n    follow_directory_symlink = 1,\n    skip_permission_denied = 2\n};",
+    "notes": [
+      "位掩码枚举，可以用 | 组合，如 follow_directory_symlink | skip_permission_denied。",
+      "作为第二个参数传给 directory_iterator / recursive_directory_iterator 的构造函数。",
+      "none 是默认值：不跟符号链接，权限错误抛异常。"
+    ],
+    "pits": [
+      "skip_permission_denied 只管目录权限错误，其他错误照样抛。",
+      "follow_directory_symlink 碰到互相指向的链接会无限递归，程序卡住不返回。",
+      "选项在构造时定死，迭代到一半改不了，要换只能重建迭代器。"
+    ],
+    "example": "using fs::directory_options;\nfor (const auto& e : fs::recursive_directory_iterator(\n         \"D:/data\", directory_options::skip_permission_denied)) {\n    std::cout << e.path().string() << \"\\n\";\n}",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/directory_options",
+    "since": "C++17"
+  },
+  {
+    "keys": ["perms"],
+    "kind": "类型",
+    "scope": "std::filesystem",
+    "brief": "文件权限位枚举，配合 permissions() 读写。",
+    "sig": "enum class perms : unsigned {\n    none = 0,\n    owner_read = 0400, owner_write = 0200, owner_exec = 0100,\n    group_read = 0040, others_read = 0004, /* ... */\n    all = 0777\n};",
+    "notes": [
+      "取值沿用 POSIX 八进制权限位，Windows 上只有写入位对应只读属性。",
+      "单独一个 perms 不会改动任何东西，要交给 permissions() 才生效。",
+      "unknown 是所有位都置位的哨兵值，不是真实权限。"
+    ],
+    "pits": [
+      "perms 是 enum class，不能直接当整数打印，要 static_cast<unsigned>(p) 再输出。",
+      "Windows 上设 owner_read、group_exec 这类位系统会忽略，别指望跨平台一致。",
+      "改权限时默认整组替换，没列出的位会被清零，见 permissions()。"
+    ],
+    "example": "auto mode = fs::perms::owner_read | fs::perms::owner_write;\nstd::cout << std::oct << static_cast<unsigned>(mode) << \"\\n\";  // 600",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/perms",
+    "since": "C++17"
+  },
+  {
+    "keys": ["filename"],
+    "kind": "成员函数",
+    "scope": "path",
+    "brief": "返回路径最后一段（文件名带扩展名）；路径以分隔符结尾时返回空 path。",
+    "sig": "path filename() const;",
+    "ret": "最后一段路径；末尾是分隔符或路径只有根时返回空 path。",
+    "notes": [
+      "纯字符串操作，不检查文件是否存在。",
+      "/a/b/ 的 filename() 是空 path，不是 b。",
+      "/ 和 C:/ 这类只有根的路径，filename() 也是空。"
+    ],
+    "pits": [
+      "以分隔符结尾时返回空，拿它去拼新路径会得到空文件名，拼之前先判 empty()。",
+      "只按分隔符切，不管是不是真文件；.gitignore 的 filename() 就是 .gitignore。",
+      "取到的中文名用 string() 可能有编码问题，输出用 u8string()。"
+    ],
+    "example": "fs::path p = \"/home/user/report.tar.gz\";\nstd::cout << p.filename().string() << \"\\n\";  // report.tar.gz\nstd::cout << p.stem().string() << \"\\n\";      // report.tar\nstd::cout << p.extension().string();         // .gz",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/filename",
+    "since": "C++17"
+  },
+  {
+    "keys": ["extension"],
+    "kind": "成员函数",
+    "scope": "path",
+    "brief": "返回 filename 里从最后一个点开始的部分（含点），没有点返回空 path。",
+    "sig": "path extension() const;",
+    "ret": "带点的扩展名；文件名不含点、或最后一段是空时返回空 path。",
+    "notes": [
+      "a.tar.gz 只拿到 .gz，多扩展名要自己再切。",
+      ".gitignore 这种以点开头的名字，extension() 返回 .gitignore 而不是空。",
+      "a. 返回 .，a 返回空 path。"
+    ],
+    "pits": [
+      "拿 extension() == \".txt\" 判断类型，在大小写不敏感的系统上 .TXT 会漏掉。",
+      "目录名也可能带点（如 v1.2），对目录调用同样返回 .2，别当成文件类型。",
+      "它只看最后一段文件名，路径里更早的点不参与。"
+    ],
+    "example": "fs::path p = \"archive.tar.gz\";\nstd::cout << p.extension().string() << \"\\n\";  // .gz\nstd::cout << fs::path(\"README\").extension().empty();  // 1",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/extension",
+    "since": "C++17"
+  },
+  {
+    "keys": ["stem"],
+    "kind": "成员函数",
+    "scope": "path",
+    "brief": "返回 filename 去掉扩展名后的部分，即最后一个点之前的内容。",
+    "sig": "path stem() const;",
+    "ret": "不含扩展名的文件名；filename 为空时返回空 path。",
+    "notes": [
+      "a.tar.gz 的 stem 是 a.tar，不是 a。",
+      ".gitignore 的 stem 是空 path，因为整个名字被当成扩展名。",
+      "纯字符串切分，路径不存在也照常返回。"
+    ],
+    "pits": [
+      "用 stem() 生成输出文件名，遇到 .gitignore 会得到空名字。",
+      "stem 只切最后一段，父目录原样保留在结果里。",
+      "路径以分隔符结尾时 filename 为空，stem 自然也为空。"
+    ],
+    "example": "fs::path p = \"build/app.exe\";\nstd::cout << p.stem().string() << \"\\n\";   // app\nfs::path o = p.parent_path() / (p.stem().string() + \".o\");",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/stem",
+    "since": "C++17"
+  },
+  {
+    "keys": ["parent_path"],
+    "kind": "成员函数",
+    "scope": "path",
+    "brief": "返回去掉 filename 后的父目录路径，没有父目录时返回空 path。",
+    "sig": "path parent_path() const;",
+    "ret": "父目录路径；像 a.txt 这种没有父目录的相对路径返回空 path。",
+    "notes": [
+      "a.txt 的 parent_path 是空，/a/b 的是 /a。",
+      "纯字符串操作，不检查父目录是否存在。",
+      "结果末尾不带分隔符（根目录除外）。"
+    ],
+    "pits": [
+      "相对路径得到的仍是相对路径，不会自动补成绝对路径，用它建文件会落到当前工作目录。",
+      "结果是空 path 时直接拼会得到相对路径，拼之前先判 empty()。",
+      "想要绝对路径先 absolute() 或 weakly_canonical() 再取 parent_path()。"
+    ],
+    "example": "fs::path p = \"/home/user/a.txt\";\nstd::cout << p.parent_path().string() << \"\\n\";   // /home/user\nstd::cout << fs::path(\"a.txt\").parent_path().empty();  // 1",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/parent_path",
+    "since": "C++17"
+  },
+  {
+    "keys": ["string"],
+    "kind": "成员函数",
+    "scope": "path",
+    "brief": "把 path 转成本地窄编码的 std::string，用于打印和传给老接口。",
+    "sig": "std::string string() const;",
+    "ret": "按系统原生窄编码转换后的字符串。",
+    "notes": [
+      "Windows 上按当前 ANSI 代码页转换，中文系统是 GBK，非 ASCII 字符可能抛 filesystem_error。",
+      "u8string() 返回 UTF-8 字节串，wstring() 返回宽串，native() 返回平台原生串。",
+      "generic_string() 只是把分隔符统一成 /，编码转换规则和 string() 一样。"
+    ],
+    "pits": [
+      "把 string() 的结果喂给需要 UTF-8 的接口（比如 UTF-8 控制台）会乱码。",
+      "转换失败抛的是 filesystem_error，不是 std::bad_cast，捕获类型别写错。",
+      "别以为 generic_string() 能解决中文，它只换分隔符。"
+    ],
+    "example": "fs::path p = \"中文目录/报告.txt\";\nstd::string narrow = p.string();   // 中文系统按 GBK 转，可能抛\nstd::string utf8 = p.u8string();   // C++17 下是 UTF-8 字节串\nstd::wstring wide = p.wstring();   // Windows 下直接给 Win32 API 用",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/string",
+    "since": "C++17"
+  },
+  {
+    "keys": ["lexically_normal"],
+    "kind": "成员函数",
+    "scope": "path",
+    "brief": "纯字符串地规范化路径：去掉 . 和能消掉的 ..，统一分隔符。",
+    "sig": "path lexically_normal() const;",
+    "ret": "规范化后的新 path，原对象不变。",
+    "notes": [
+      "不查磁盘、不解析符号链接，处理不了 .. 指向的是链接的情况。",
+      "a/../b 变成 b，./a//b/ 变成 a/b/。",
+      "返回新对象，要生效得写 p = p.lexically_normal()。"
+    ],
+    "pits": [
+      "只按字符串消 ..，前面那段如果是符号链接，消完的路径指向的可能不是同一个文件。",
+      "开头就是 .. 的部分消不掉，../a 保持原样。",
+      "它不会把相对路径变绝对，变绝对用 absolute() 或 weakly_canonical()。"
+    ],
+    "example": "std::cout << fs::path(\"./a/../b/./c.txt\").lexically_normal().string() << \"\\n\";\n// 输出 b/c.txt",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/lexically_normal",
+    "since": "C++17"
+  },
+  {
+    "keys": ["replace_extension"],
+    "kind": "成员函数",
+    "scope": "path",
+    "brief": "把路径最后一段的扩展名换成新的，直接改对象自身。",
+    "sig": "path& replace_extension(const path& replacement = path());",
+    "params": [
+      ["replacement", "新扩展名，不带点会自动补一个点；传空 path 表示删掉扩展名"]
+    ],
+    "ret": "返回 *this 的引用，可以链式调用。",
+    "notes": [
+      "只换最后一个扩展名，a.tar.gz 换 .zip 得到 a.tar.zip。",
+      "不传参数或传空 path 就删掉扩展名。",
+      "纯字符串修改，不动磁盘上的文件。"
+    ],
+    "pits": [
+      "filename 是 . 或 .. 时什么都不做，也不报错。",
+      "它不改真实文件名，要改名用 rename()。",
+      "对没有扩展名的名字传 .txt 是追加，不是替换。"
+    ],
+    "example": "fs::path p = \"report.tar.gz\";\np.replace_extension(\".zip\");   // report.tar.zip\np.replace_extension(\"txt\");    // report.tar.txt\np.replace_extension();         // report.tar",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/replace_extension",
+    "since": "C++17"
+  },
+  {
+    "keys": ["operator/"],
+    "kind": "运算符",
+    "scope": "path",
+    "brief": "路径拼接运算符：把右操作数接到左边路径后面，必要时补分隔符。",
+    "sig": "path operator/(const path& lhs, const path& rhs);\npath& operator/=(const path& p);",
+    "params": [
+      ["lhs", "左边的目录路径"],
+      ["rhs", "要接上去的路径；它是绝对路径时整体替换 lhs"]
+    ],
+    "ret": "拼接后的新 path（/= 返回 *this 的引用）。",
+    "notes": [
+      "右操作数是绝对路径时直接替换整个左边，不是拼接。",
+      "拼接不等于规范化，.. 和 . 会原样留在结果里。",
+      "跨平台安全的拼接方式，比手工加上分隔符可靠。"
+    ],
+    "pits": [
+      "p / \"C:/x\" 在 Windows 上整体替换成 C:/x，不是拼到 p 后面。",
+      "p / \"\" 会在末尾留一个分隔符，别用它来清理路径。",
+      "字符串直接相加不会补分隔符，\"a\" + \"b\" 得到 ab，这是最常见的错。"
+    ],
+    "example": "fs::path dir = \"D:/data\";\nfs::path f1 = dir / \"a.txt\";       // D:/data/a.txt\nfs::path f2 = dir / \"C:/x.txt\";    // C:/x.txt，整体替换\nfs::path f3 = dir / \"../b.txt\";    // D:/data/../b.txt，不化简",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/operator_slash",
+    "since": "C++17"
+  },
+  {
+    "keys": ["is_absolute"],
+    "kind": "成员函数",
+    "scope": "path",
+    "brief": "判断路径是不是绝对路径：要同时有根名和根目录才算。",
+    "sig": "bool is_absolute() const;",
+    "ret": "绝对路径返回 true，相对路径返回 false。",
+    "notes": [
+      "Linux 上以 / 开头就是绝对路径。",
+      "Windows 上 C:/x 是，/x 不是（缺盘符），C:x 也不是。",
+      "纯字符串判断，不查磁盘、不解析链接。"
+    ],
+    "pits": [
+      "Windows 上 /x 的 is_absolute() 是 false，但它确实指向当前盘根目录，别混。",
+      "相对路径是相对于 current_path() 的，程序改过工作目录后指向的地方就变了。",
+      "判断写反很常见：绝对路径才返回 true，别把返回值当「是相对路径」。"
+    ],
+    "example": "fs::path a = \"C:/Windows\";\nfs::path b = \"/temp\";\nstd::cout << a.is_absolute() << \" \" << b.is_absolute();  // Windows 下 1 0",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/path/is_absrel",
+    "since": "C++17"
+  },
+  {
+    "keys": ["exists"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "判断路径是否存在；跟随符号链接，链接断了算不存在。",
+    "sig": "bool exists(const path& p);\nbool exists(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要检查的路径"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "存在返回 true；不存在或出错返回 false（ec 版会把原因写进 ec）。",
+    "notes": [
+      "内部走 status()，所以链接本身在但目标没了，结果是 false。",
+      "要区分「不存在」和「没权限」，只能用 ec 版看 ec 有没有被置位。",
+      "C++17 还有接受 file_status 的重载，已拿到状态时能省一次系统调用。"
+    ],
+    "pits": [
+      "先 exists() 再操作是两个系统调用，中间文件可能被删（TOCTOU），能一步做完就别分两步。",
+      "没权限的目录里 exists 可能是 false，别直接当成文件不存在。",
+      "遍历时对每个条目再调 exists() 是多余的，条目里已经带了状态。"
+    ],
+    "example": "std::error_code ec;\nif (!fs::exists(\"config.ini\", ec) && ec)\n    std::cout << \"查不到，错误码 \" << ec.value() << \"\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/exists",
+    "since": "C++17"
+  },
+  {
+    "keys": ["is_directory"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "判断路径是不是目录；路径不存在返回 false，不报错。",
+    "sig": "bool is_directory(const path& p);\nbool is_directory(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要判断的路径"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "是目录返回 true，否则 false。",
+    "notes": [
+      "跟随符号链接：链接指向目录时返回 true。",
+      "等价于 status(p).type() == file_type::directory，但少写一截。",
+      "路径不存在返回 false，和「不是目录」得到的结果一样。"
+    ],
+    "pits": [
+      "分不清「不存在」和「不是目录」，要区分先调 status() 看是不是 not_found。",
+      "权限不足会抛 filesystem_error，批量扫目录时用带 ec 的重载。",
+      "想判断链接本身是不是目录得用 symlink_status()，这个函数会跟进去。"
+    ],
+    "example": "if (fs::is_directory(\"logs\"))\n    std::cout << \"是目录\\n\";\nelse\n    std::cout << \"不是目录或不存在\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/is_directory",
+    "since": "C++17"
+  },
+  {
+    "keys": ["is_regular_file"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "判断是不是普通文件：有内容、能随机读写的文件。",
+    "sig": "bool is_regular_file(const path& p);\nbool is_regular_file(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要判断的路径"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "是普通文件返回 true，否则 false。",
+    "notes": [
+      "跟随符号链接，链接指向普通文件时返回 true。",
+      "目录、管道、设备、socket 都返回 false。",
+      "路径不存在返回 false，不抛异常。"
+    ],
+    "pits": [
+      "对不存在的路径静默返回 false，日志里看不出是没找到还是类型不对。",
+      "Windows 上目录也常被叫作文件，判断目录一定要用 is_directory，别用 !is_regular_file。",
+      "处理 /dev 下的设备或命名管道时这个函数全是 false，得换别的判断。"
+    ],
+    "example": "if (fs::is_regular_file(p) && fs::file_size(p) > 1024)\n    std::cout << \"大于 1KB 的普通文件\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/is_regular_file",
+    "since": "C++17"
+  },
+  {
+    "keys": ["is_empty"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "判断空文件（0 字节）或空目录（没有条目），两种情况合在一个函数里。",
+    "sig": "bool is_empty(const path& p);\nbool is_empty(const path& p, std::error_code& ec);",
+    "params": [
+      ["p", "要检查的路径，可以是文件也可以是目录"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "文件大小为 0 或目录里没有条目时返回 true。",
+    "notes": [
+      "普通文件看大小是否为 0，目录看里面有没有条目。",
+      "路径不存在会报错，不是返回 false。",
+      "目录里的隐藏文件也算条目，只藏着点文件的目录不算空。"
+    ],
+    "pits": [
+      "把它当「目录为空」专用，对文件路径会走文件分支，语义完全对不上。",
+      "不存在的路径会抛 filesystem_error，批量检查前先 exists() 或改用 ec 版。",
+      "符号链接判断的是链接目标，不是链接本身。"
+    ],
+    "example": "if (fs::is_directory(p) && fs::is_empty(p))\n    std::cout << \"空目录\\n\";\nif (fs::is_regular_file(p) && fs::is_empty(p))\n    std::cout << \"0 字节文件\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/is_empty",
+    "since": "C++17"
+  },
+  {
+    "keys": ["create_directory"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "创建单个目录；已存在且是目录时返回 false，不报错。",
+    "sig": "bool create_directory(const path& p);\nbool create_directory(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要创建的单层目录路径"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "真的创建了返回 true；目录已存在返回 false。",
+    "notes": [
+      "不递归：父目录不存在就失败，要一次建多层用 create_directories。",
+      "返回 false 只表示目录已存在，不代表操作失败。",
+      "还有带 attributes 参数的重载，可以照抄另一个目录的权限位。"
+    ],
+    "pits": [
+      "已存在同名普通文件时抛 filesystem_error，不是返回 false。",
+      "相对路径按 current_path() 解析，程序里改过工作目录会建到别处。",
+      "父目录缺一层就失败，写 out/logs 而 out 不存在时直接抛异常。"
+    ],
+    "example": "if (!fs::create_directory(\"out\"))     // 已存在时返回 false\n    std::cout << \"已存在\\n\";\nfs::create_directories(\"out/a/b\");    // 多层要用这个",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/create_directory",
+    "since": "C++17"
+  },
+  {
+    "keys": ["create_directories"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "递归创建整条目录链，缺哪层补哪层，建了任意一层就返回 true。",
+    "sig": "bool create_directories(const path& p);\nbool create_directories(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要创建的目录路径，可以包含不存在的多层父目录"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "创建了至少一层返回 true；全部都已存在返回 false。",
+    "notes": [
+      "已全部存在返回 false，不报错。",
+      "中途失败会留下已经建好的部分目录，不会回滚。",
+      "路径末尾带分隔符也能识别成目录。"
+    ],
+    "pits": [
+      "路径里有同名文件挡路时抛 filesystem_error，Windows 上是 ERROR_ALREADY_EXISTS。",
+      "两个进程同时建同一目录，别人先建成功时返回 false 是正常的，别当错误。",
+      "把文件名误传进来（如 out/a.txt）会建出一个叫 a.txt 的目录。"
+    ],
+    "example": "fs::create_directories(\"build/logs/2026\");\nbool created = fs::create_directories(\"build\");  // 已存在，false\nstd::cout << created << \"\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/create_directory",
+    "since": "C++17"
+  },
+  {
+    "keys": ["remove"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "删除一个文件或空目录，相当于 POSIX 的 remove；非空目录删不掉。",
+    "sig": "bool remove(const path& p);\nbool remove(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要删除的文件或空目录"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "原来存在并删掉了返回 true；路径本来就不存在返回 false。",
+    "notes": [
+      "返回 false 只表示路径本来就不存在，不代表删除成功。",
+      "符号链接删的是链接本身，不动它指向的文件。",
+      "要删非空目录用 remove_all，它返回删掉的条目数。"
+    ],
+    "pits": [
+      "目录非空时抛 filesystem_error（ENOTEMPTY），不是返回 false；想判成功得看异常或 ec。",
+      "Windows 上文件被别的进程打开着时删除失败，报 ERROR_SHARING_VIOLATION，要先关句柄。",
+      "删文件别在末尾带分隔符，Windows 上会按目录处理，删不掉。"
+    ],
+    "example": "std::error_code ec;\nbool ok = fs::remove(\"a.txt\", ec);   // 不存在时 ok=false，不算错误\nstd::cout << ok << \" \" << ec.value() << \"\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/remove",
+    "since": "C++17"
+  },
+  {
+    "keys": ["remove_all"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "递归删除路径及其下所有内容，返回删掉的条目总数。",
+    "sig": "std::uintmax_t remove_all(const path& p);\nstd::uintmax_t remove_all(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要删除的路径，目录会连内容一起删"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "删掉的条目数（目录自身也算一条）；路径不存在返回 0。",
+    "notes": [
+      "返回值包含目录自身，删一个空目录返回 1。",
+      "符号链接只删链接，不会跟进里面。",
+      "删到一半出错会抛异常，已经删掉的部分不会恢复。"
+    ],
+    "pits": [
+      "参数写错一个字符就是删掉整棵树，删前先打印 weakly_canonical(p) 确认。",
+      "相对路径按 current_path() 解析，程序改过工作目录后同一个字符串指向别处。",
+      "Windows 上被占用的文件删不掉，会抛异常并留下半棵目录树。"
+    ],
+    "example": "auto n = fs::remove_all(\"build/cache\");\nstd::cout << \"删了 \" << n << \" 个条目\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/remove",
+    "since": "C++17"
+  },
+  {
+    "keys": ["rename"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "改名或移动文件、目录；目标已存在时按系统语义替换。",
+    "sig": "void rename(const path& from, const path& to);\nvoid rename(const path& from, const path& to, std::error_code& ec) noexcept;",
+    "params": [
+      ["from", "原路径，必须存在"],
+      ["to", "新路径，父目录必须已经存在"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "notes": [
+      "同一文件系统内是原子改名，不会先复制再删。",
+      "目录也能改，整棵子树跟着走。",
+      "返回 void，成功与否只能看异常或 ec。"
+    ],
+    "pits": [
+      "跨盘（跨文件系统）改名会失败，不会自动复制过去，要先 copy 再删。",
+      "目标已存在时被静默替换，想防止覆盖得先自己检查。",
+      "Windows 上目标文件被打开着时改名失败，报 ERROR_ACCESS_DENIED。"
+    ],
+    "example": "fs::rename(\"a.tmp\", \"a.txt\");        // 同目录改名\nfs::create_directories(\"build\");\nfs::rename(\"out\", \"build/out\");       // 移动目录",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/rename",
+    "since": "C++17"
+  },
+  {
+    "keys": ["copy"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "复制文件或目录，递归、覆盖等行为由 copy_options 决定。",
+    "sig": "void copy(const path& from, const path& to);\nvoid copy(const path& from, const path& to, copy_options options);",
+    "params": [
+      ["from", "源路径，文件或目录"],
+      ["to", "目标路径"],
+      ["options", "行为开关，如 recursive、overwrite_existing"]
+    ],
+    "notes": [
+      "默认不递归：目录里的文件会复制过去，子目录不进去；要连子树一起复制得加 copy_options::recursive。",
+      "目标文件已存在默认报错，要覆盖得加 copy_options::overwrite_existing。",
+      "返回 void，没有 bool 版，成功与否只能看异常；要错误码用带 ec 的重载。"
+    ],
+    "pits": [
+      "忘记 recursive 时只复制顶层文件，子目录整个漏掉，而且不报任何错。",
+      "复制文件到已存在的目录时写到 to/filename；复制目录则是把内容铺进 to，不会多套一层源目录名。",
+      "复制符号链接默认跟随，复制的是目标内容；要保留链接用 copy_symlinks。"
+    ],
+    "example": "fs::copy(\"src\", \"backup\", fs::copy_options::recursive\n                           | fs::copy_options::overwrite_existing);",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/copy",
+    "since": "C++17"
+  },
+  {
+    "keys": ["copy_options"],
+    "kind": "类型",
+    "scope": "std::filesystem",
+    "brief": "copy 和 copy_file 的行为开关：跳过或覆盖已有文件、是否递归。",
+    "sig": "enum class copy_options {\n    none, skip_existing, overwrite_existing, update_existing,\n    recursive, copy_symlinks, skip_symlinks,\n    directories_only, create_symlinks, create_hard_links\n};",
+    "notes": [
+      "位掩码枚举，可以组合，如 recursive | overwrite_existing。",
+      "skip_existing 跳过不报错，overwrite_existing 直接覆盖，update_existing 只在源更新时覆盖。",
+      "递归复制目录必须显式写 recursive。"
+    ],
+    "pits": [
+      "默认值 none 表示目标存在就报错，不是自动覆盖。",
+      "recursive 只管进不进子目录，覆盖策略要另外给，两者要一起写。",
+      "create_symlinks、copy_symlinks 在 Windows 上需要创建符号链接的权限，普通账户会失败。"
+    ],
+    "example": "fs::copy(\"src\", \"dst\", fs::copy_options::recursive\n                       | fs::copy_options::overwrite_existing);",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/copy_options",
+    "since": "C++17"
+  },
+  {
+    "keys": ["copy_file"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "只复制单个普通文件的内容，返回是否真的复制了。",
+    "sig": "bool copy_file(const path& from, const path& to);\nbool copy_file(const path& from, const path& to, copy_options options);",
+    "params": [
+      ["from", "源文件路径"],
+      ["to", "目标文件路径，父目录必须存在"],
+      ["options", "skip_existing 或 overwrite_existing 等策略"]
+    ],
+    "ret": "复制了返回 true；skip_existing 跳过时返回 false。",
+    "notes": [
+      "目标已存在默认报错，要覆盖用 overwrite_existing，要跳过用 skip_existing。",
+      "skip_existing 时目标存在返回 false，不算错误。",
+      "不建目标目录，也不处理目录，遇到目录直接失败。"
+    ],
+    "pits": [
+      "to 的父目录不存在就抛 filesystem_error，先 create_directories。",
+      "复制大文件中途失败会留下一个不完整的文件，且没有回滚。",
+      "from 是符号链接时复制的是指向的目标内容，不是链接本身。"
+    ],
+    "example": "fs::create_directories(\"backup\");\nbool ok = fs::copy_file(\"a.bin\", \"backup/a.bin\",\n                        fs::copy_options::overwrite_existing);",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/copy_file",
+    "since": "C++17"
+  },
+  {
+    "keys": ["file_size"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "返回文件字节数，只对普通文件有效。",
+    "sig": "std::uintmax_t file_size(const path& p);\nstd::uintmax_t file_size(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "要查询的普通文件路径"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "文件大小，单位字节，类型是无符号的 std::uintmax_t。",
+    "notes": [
+      "返回值是 uintmax_t，和 int 混着算会出符号和宽度问题。",
+      "目录上调用会报错，不是返回 0 或目录项大小。",
+      "数字来自 stat，网络盘上可能不等于实际能读到的字节数。"
+    ],
+    "pits": [
+      "文件不存在会抛 filesystem_error，批量统计前先判 exists 或用 ec 版。",
+      "稀疏文件返回的是逻辑大小，不是实际占用的磁盘空间。",
+      "文件正在被写入时拿到的是中间值，统计前先让写入方关闭句柄。"
+    ],
+    "example": "std::uintmax_t n = fs::file_size(\"a.bin\");\nstd::cout << n << \" 字节，约 \" << n / 1024 << \" KB\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/file_size",
+    "since": "C++17"
+  },
+  {
+    "keys": ["last_write_time"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "读取或设置文件的最后修改时间。",
+    "sig": "file_time_type last_write_time(const path& p);\nvoid last_write_time(const path& p, file_time_type new_time);",
+    "params": [
+      ["p", "要读或改的文件路径"],
+      ["new_time", "新的修改时间，类型必须是 file_time_type"]
+    ],
+    "ret": "两参数的重载没有返回值；单参数返回 file_time_type。",
+    "notes": [
+      "读和写是同名的两个重载，看参数个数区分。",
+      "参数类型是 file_time_type，不能直接传 system_clock::time_point。",
+      "Windows 精度 100ns，Linux 常见纳秒，FAT32 只有 2 秒。"
+    ],
+    "pits": [
+      "想转成人类可读时间得自己算 clock 偏移，C++17 没有现成转换。",
+      "FAT32 上写进去的时间会被取整到 2 秒，读回来和写的不一样。",
+      "改时间需要写权限，Windows 上只读文件会直接失败。"
+    ],
+    "example": "auto t = fs::last_write_time(\"a.txt\");\nfs::last_write_time(\"a.txt\", t + std::chrono::hours(24));  // 改成一天后\nstd::cout << (fs::last_write_time(\"a.txt\") > t) << \"\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/last_write_time",
+    "since": "C++17"
+  },
+  {
+    "keys": ["current_path"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "读取或修改进程的当前工作目录，所有相对路径都按它解析。",
+    "sig": "path current_path();\nvoid current_path(const path& p);",
+    "params": [
+      ["p", "新的工作目录，必须是已存在的目录"],
+      ["ec", "错误码输出参数（读取版），传了就不抛异常"]
+    ],
+    "ret": "无参版返回当前目录的绝对路径；带参数的版本没有返回值。",
+    "notes": [
+      "改它等于调 chdir，影响整个进程，不只是当前函数。",
+      "多线程里改它，别的线程的相对路径会跟着变。",
+      "无参版可能抛异常，要稳就用带 error_code 的重载。"
+    ],
+    "pits": [
+      "程序启动时它不一定是你以为的目录，VS Code 调试和双击 exe 的启动目录常常不同。",
+      "改完之后用相对路径打开的文件全换地方，日志和配置最容易踩。",
+      "Windows 上把某目录设为当前目录后，那个目录在被切走前删不掉。"
+    ],
+    "example": "std::cout << fs::current_path().string() << \"\\n\";\nfs::current_path(\"D:/work\");   // 之后相对路径都从这算",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/current_path",
+    "since": "C++17"
+  },
+  {
+    "keys": ["temp_directory_path"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "返回系统临时目录路径：Windows 上是 %TEMP%，Linux 上是 /tmp。",
+    "sig": "path temp_directory_path();\npath temp_directory_path(std::error_code& ec) noexcept;",
+    "params": [
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "系统临时目录的路径。",
+    "notes": [
+      "只返回路径，不创建目录、不创建文件。",
+      "目录由系统给，多个程序共用，里面的文件随时可能被清理。",
+      "写临时文件时文件名要自己保证唯一。"
+    ],
+    "pits": [
+      "临时目录可能没写权限或被安全软件限制，创建文件失败要处理，别假设一定能写。",
+      "别在里面放需要长期保留的数据，系统清理和重启都会删。",
+      "用固定文件名会在并发运行时互相覆盖，加 pid 或随机后缀。"
+    ],
+    "example": "fs::path dir = fs::temp_directory_path();\nfs::path log = dir / \"myapp.log\";\nstd::ofstream out(log);   // 并发运行时同名文件会互相覆盖",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/temp_directory_path",
+    "since": "C++17"
+  },
+  {
+    "keys": ["absolute"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "把相对路径接在当前工作目录后面变成绝对路径，不检查是否存在。",
+    "sig": "path absolute(const path& p);\npath absolute(const path& p, const path& base);",
+    "params": [
+      ["p", "要转的路径"],
+      ["base", "基准目录，默认是 current_path()"]
+    ],
+    "ret": "绝对路径；p 本身是绝对路径时原样返回。",
+    "notes": [
+      "只做拼接，不去掉 ..、不解析符号链接。",
+      "路径不需要存在，也不会访问磁盘。",
+      "给还不存在的路径算绝对路径，用它或 weakly_canonical。"
+    ],
+    "pits": [
+      "结果里会留着 ..，拿字符串比较会得到两个不同的写法，比较路径用 equivalent。",
+      "依赖 current_path()，程序改过工作目录后结果就变了。",
+      "它不检查存在性，算出来的路径可能根本不存在，别拿它当存在性检查。"
+    ],
+    "example": "fs::path p = fs::absolute(\"logs/app.log\");\nstd::cout << p.string() << \"\\n\";   // D:/work/logs/app.log，.. 不化简",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/absolute",
+    "since": "C++17"
+  },
+  {
+    "keys": ["canonical"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "把路径变成规范绝对路径：解析符号链接、消掉 . 和 ..，要求路径存在。",
+    "sig": "path canonical(const path& p);\npath canonical(const path& p, std::error_code& ec);",
+    "params": [
+      ["p", "要规范的路径，必须存在"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "规范化后的绝对路径，不含 . 和 ..，符号链接已展开。",
+    "notes": [
+      "路径必须存在，不存在直接报错，这是它和 weakly_canonical 的关键差别。",
+      "会把符号链接全部展开，得到的是真实路径。",
+      "结果可用于字符串比较，但仍建议用 equivalent 判断同一文件。"
+    ],
+    "pits": [
+      "路径不存在时抛 filesystem_error，新建文件前算路径别用它。",
+      "解析链接会跨出原目录，打印出来的路径和你传进去的完全不一样。",
+      "比较两个路径是否同一个文件，用它转完再比字符串，不如直接 equivalent。"
+    ],
+    "example": "std::cout << fs::canonical(\"data/../a.txt\").string() << \"\\n\";\n// 输出真实绝对路径，a.txt 必须存在",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/canonical",
+    "since": "C++17"
+  },
+  {
+    "keys": ["weakly_canonical"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "能解析的部分按真实路径算，不存在的尾部只做字符串规范化，不报错。",
+    "sig": "path weakly_canonical(const path& p);\npath weakly_canonical(const path& p, std::error_code& ec);",
+    "params": [
+      ["p", "要规范的路径，允许尾部不存在"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "绝对路径，已存在的前缀会解析符号链接。",
+    "notes": [
+      "适合给「即将创建」的路径算绝对路径。",
+      "已存在的部分按真实路径解析，不存在的部分只消 . 和 ..。",
+      "不需要整条路径存在，返回的也不是存在性判断。"
+    ],
+    "pits": [
+      "尾部不存在时不做链接解析，结果可能和文件真建出来后的路径不同。",
+      "它仍然会访问磁盘判断前缀是否存在，网络盘上会变慢。",
+      "别拿它替代 canonical 做校验，它对不存在的路径一样返回结果。"
+    ],
+    "example": "fs::path p = fs::weakly_canonical(\"out/2026/new/report.txt\");\nfs::create_directories(p.parent_path());",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/weakly_canonical",
+    "since": "C++17"
+  },
+  {
+    "keys": ["relative"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "算出 p 相对于 base（默认当前目录）的相对路径。",
+    "sig": "path relative(const path& p);\npath relative(const path& p, const path& base);",
+    "params": [
+      ["p", "要转成相对路径的路径"],
+      ["base", "基准目录，默认是 current_path()"]
+    ],
+    "ret": "相对 base 的路径；两者指向同一处时返回 .。",
+    "notes": [
+      "两边都会先规范化，所以结果里没有多余的点段。",
+      "p 和 base 是同一个目录时返回 .。",
+      "默认 base 是 current_path()，程序改过工作目录结果就变。"
+    ],
+    "pits": [
+      "两个路径在不同盘符时没有公共根，内部返回空 path，拿不到有用结果。",
+      "结果是相对 base 的，换个工作目录再拼回去就指向别处，跨模块传递要连 base 一起传。",
+      "路径里有符号链接时结果可能和肉眼看到的层级不一致，因为内部先做了规范化。"
+    ],
+    "example": "fs::path p = fs::relative(\"D:/work/src/a.cpp\", \"D:/work\");\nstd::cout << p.string() << \"\\n\";   // src/a.cpp",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/relative",
+    "since": "C++17"
+  },
+  {
+    "keys": ["equivalent"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "判断两个路径是否指向同一个文件或目录，按文件系统标识比较。",
+    "sig": "bool equivalent(const path& p1, const path& p2);\nbool equivalent(const path& p1, const path& p2, std::error_code& ec) noexcept;",
+    "params": [
+      ["p1", "第一个路径，必须存在"],
+      ["p2", "第二个路径，必须存在"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "指向同一个文件返回 true，否则 false。",
+    "notes": [
+      "比较的是文件 ID（inode / 文件索引），不是字符串，软链接会被解开。",
+      "Windows 上大小写不敏感，A.TXT 和 a.txt 指向同一文件时为 true。",
+      "两个路径都必须存在。"
+    ],
+    "pits": [
+      "任一路径不存在就抛 filesystem_error，不是返回 false。",
+      "想比较路径字符串用 == 或 lexically_normal，别用 equivalent。",
+      "网络盘上文件 ID 可能不稳定或直接不支持，结果不可靠。"
+    ],
+    "example": "std::error_code ec;\nif (fs::equivalent(\"a.txt\", \"link_to_a.txt\", ec))\n    std::cout << \"同一个文件\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/equivalent",
+    "since": "C++17"
+  },
+  {
+    "keys": ["status"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "查路径的文件类型和权限位，返回 file_status 快照。",
+    "sig": "file_status status(const path& p);\nfile_status symlink_status(const path& p);",
+    "params": [
+      ["p", "要查询的路径"],
+      ["ec", "错误码输出参数（重载），传了就不抛异常"]
+    ],
+    "ret": "file_status 对象，用 type() 取类型、permissions() 取权限位。",
+    "notes": [
+      "status 跟随符号链接，symlink_status 看链接本身。",
+      "文件不存在时返回 file_type::not_found，这是正常返回值。",
+      "要类型和权限一次拿到时用它，比 exists 加 is_directory 少两次系统调用。"
+    ],
+    "pits": [
+      "判断存在别写 status(p).type() != file_type::not_found，多绕一步还容易写错，直接用 exists。",
+      "权限不足等真正的错误依然抛 filesystem_error，只有「不存在」是正常返回。",
+      "返回的是快照，调用后文件状态可能已经变了（TOCTOU）。"
+    ],
+    "example": "fs::file_status st = fs::status(\"a.txt\");\nif (st.type() == fs::file_type::regular)\n    std::cout << \"普通文件\\n\";\nelse if (st.type() == fs::file_type::not_found)\n    std::cout << \"不存在\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/status",
+    "since": "C++17"
+  },
+  {
+    "keys": ["permissions"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "修改文件权限位，默认整组替换而不是叠加。",
+    "sig": "void permissions(const path& p, perms prms);\nvoid permissions(const path& p, perms prms, perm_options opts);",
+    "params": [
+      ["p", "要改权限的路径"],
+      ["prms", "目标权限位，用 perms 的枚举值按位或出来"],
+      ["opts", "replace（默认，整组替换）/ add / remove / nofollow"]
+    ],
+    "notes": [
+      "默认 perm_options::replace：只保留 prms 里列出的位。",
+      "要加权限用 perm_options::add，去掉用 remove。",
+      "Windows 上只有写入位对应只读属性，其他位基本无效。"
+    ],
+    "pits": [
+      "默认 replace 会把没写的位清零，顺手把 owner_read 删掉后文件就读不了了。",
+      "符号链接默认改的是目标，要改链接本身得加 perm_options::nofollow。",
+      "改别人的文件需要所有者和管理员权限，普通用户会抛 filesystem_error。"
+    ],
+    "example": "fs::permissions(\"run.sh\",\n    fs::perms::owner_all | fs::perms::group_read,\n    fs::perm_options::replace);",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/permissions",
+    "since": "C++17"
+  },
+  {
+    "keys": ["space"],
+    "kind": "函数",
+    "scope": "filesystem",
+    "brief": "查询路径所在文件系统的容量、空闲空间和可用空间，单位字节。",
+    "sig": "space_info space(const path& p);\nspace_info space(const path& p, std::error_code& ec) noexcept;",
+    "params": [
+      ["p", "文件系统里的任意一个已存在路径"],
+      ["ec", "错误码输出参数，传了就不抛异常"]
+    ],
+    "ret": "space_info，三个 uintmax_t 字段：capacity、free、available。",
+    "notes": [
+      "free 是总空闲块，available 是当前用户实际能用的，可能更小。",
+      "Windows 上 free 和 available 相等。",
+      "路径只需要存在，文件还是目录都行。"
+    ],
+    "pits": [
+      "路径不存在会抛 filesystem_error，查盘符用量前先确认目录存在。",
+      "别用 capacity - free 当「文件占了多少」，差值里还有元数据和保留块。",
+      "网络盘和挂载点上报的数字可能滞后或有配额限制，别当精确值。"
+    ],
+    "example": "auto si = fs::space(\"D:/\");\nstd::cout << si.capacity / (1024ull * 1024 * 1024) << \" GB 总量，\"\n          << si.available / (1024ull * 1024 * 1024) << \" GB 可用\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/space",
+    "since": "C++17"
+  },
+  {
+    "keys": ["depth"],
+    "kind": "成员函数",
+    "scope": "递归目录迭代器",
+    "brief": "当前条目相对起始目录的深度，起始目录下的条目是 0。",
+    "sig": "int depth() const;",
+    "ret": "从 0 开始的整数深度。",
+    "notes": [
+      "是迭代器的成员，不是 directory_entry 的，entry.depth() 编不过。",
+      "进一层子目录 depth 加一，pop() 退回上层时减一。",
+      "只有递归迭代器有，普通 directory_iterator 没有这个成员。"
+    ],
+    "pits": [
+      "常写成 entry.depth()，编译报 no member named 'depth'，要写 it.depth()。",
+      "深度从 0 开始算，直接当「第几层」打印给用户会差一层。",
+      "调了 disable_recursion_pending 之后深度不增加，因为根本没下去。"
+    ],
+    "example": "for (auto it = fs::recursive_directory_iterator(\"src\");\n     it != fs::recursive_directory_iterator(); ++it)\n    std::cout << std::string(it.depth() * 2, ' ') << it->path().filename().string() << \"\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/recursive_directory_iterator/depth",
+    "since": "C++17"
+  },
+  {
+    "keys": ["disable_recursion_pending"],
+    "kind": "成员函数",
+    "scope": "递归目录迭代器",
+    "brief": "让下一次 ++ 不进入当前目录，用来跳过整棵子树。",
+    "sig": "void disable_recursion_pending();",
+    "notes": [
+      "必须在 ++it 之前调用，调用后当前目录的子项不会再出现。",
+      "只对这一次生效，跳到下一个兄弟后恢复正常递归。",
+      "对非目录条目调用没有效果，也不报错。"
+    ],
+    "pits": [
+      "它和 skip_permission_denied 不是一回事：那个是遇到错误才跳，这个是有意跳整棵子树。",
+      "range-for 里拿不到迭代器，这种跳过只能用传统 for 循环。",
+      "对起始目录本身调用会把整次遍历直接结束。"
+    ],
+    "example": "for (auto it = fs::recursive_directory_iterator(\"src\");\n     it != fs::recursive_directory_iterator(); ++it) {\n    if (it->path().filename() == \".git\") it.disable_recursion_pending();\n    else std::cout << it->path().string() << \"\\n\";\n}",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/recursive_directory_iterator/disable_recursion_pending",
+    "since": "C++17"
+  },
+  {
+    "keys": ["options"],
+    "kind": "成员函数",
+    "scope": "directory_iterator",
+    "brief": "返回构造迭代器时使用的目录选项，只读。",
+    "sig": "directory_options options() const noexcept;",
+    "ret": "构造时传入的 directory_options 值。",
+    "notes": [
+      "用来确认这个迭代器会不会跟进符号链接、会不会跳过权限错误。",
+      "构造后不能改，要换选项只能重建迭代器。",
+      "recursive_directory_iterator 上也是同名函数、同样返回类型。"
+    ],
+    "pits": [
+      "返回的是构造参数，和目录当前状态无关。",
+      "在默认构造的 end 迭代器上调用没有意义，值不可依赖。",
+      "别把 options() 当成目录的属性，它只是构造时的开关。"
+    ],
+    "example": "fs::directory_iterator it(\"data\", fs::directory_options::skip_permission_denied);\nif (it.options() != fs::directory_options::none)\n    std::cout << \"已开启选项\\n\";",
+    "link": "https://en.cppreference.com/w/cpp/filesystem/directory_iterator",
+    "since": "C++17"
+  }
+]

@@ -1,0 +1,797 @@
+[
+  {
+    "keys": ["<sys/socket.h>"],
+    "kind": "头文件",
+    "scope": "sys/socket.h",
+    "brief": "声明套接字 API、sockaddr 与 AF_*/SOCK_*/SO_* 常量。",
+    "notes": [
+      "POSIX 标准头，Linux 和 WSL 都有；Windows 没有这个文件。",
+      "sockaddr_in 在 <netinet/in.h>，字节序和地址转换函数在 <arpa/inet.h>。"
+    ],
+    "pits": [
+      "只 include 它拿不到 sockaddr_in 的完整定义，编译会报 incomplete type。",
+      "Windows 要改用 winsock2.h 并先调 WSAStartup，不能直接照抄。"
+    ],
+    "example": "#include <sys/socket.h>\nint fd = socket(AF_INET, SOCK_STREAM, 0);\nif (fd == -1) { perror(\"socket\"); return 1; }",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["<netinet/in.h>"],
+    "kind": "头文件",
+    "scope": "netinet/in.h",
+    "brief": "定义 IPv4/IPv6 地址结构、INADDR_ANY 与 IPPROTO_* 协议号。",
+    "notes": [
+      "sockaddr_in 的 sin_port 和 sin_addr 都必须先转成网络字节序。",
+      "INADDR_ANY、in_addr_t 也在这里；地址字符串转换函数不在这里。"
+    ],
+    "pits": [
+      "只 include 它时 inet_pton 没声明；htons 是 glibc 顺带带入的，别依赖。",
+      "sin_family 忘了写 AF_INET，bind 会直接返回 EINVAL。"
+    ],
+    "example": "sockaddr_in addr{};\naddr.sin_family = AF_INET;\naddr.sin_addr.s_addr = INADDR_ANY;",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["<arpa/inet.h>"],
+    "kind": "头文件",
+    "scope": "arpa/inet.h",
+    "brief": "声明 inet_pton/inet_ntop 与 htons/htonl/ntohs/ntohl 等转换函数。",
+    "notes": [
+      "inet_pton 成功返回 1，格式非法返回 0，两种都算失败。",
+      "字节序函数按 POSIX 放在这里；glibc 的 <netinet/in.h> 也会带入。"
+    ],
+    "pits": [
+      "inet_ntop 的缓冲至少 INET_ADDRSTRLEN（16）字节，给 4 字节会 ENOSPC。",
+      "把 inet_pton 的 0 当成成功，会把非法 IP 直接填进 sockaddr。"
+    ],
+    "example": "char ip[INET_ADDRSTRLEN];\ninet_ntop(AF_INET, &addr.sin_addr, ip, sizeof ip);\nstd::printf(\"peer = %s:%u\\n\", ip, ntohs(addr.sin_port));",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["<unistd.h>"],
+    "kind": "头文件",
+    "scope": "unistd.h",
+    "brief": "POSIX 系统调用头：close、read、write、fork 等，Linux/WSL 必备。",
+    "notes": [
+      "close/read/write/fork/getpid 都在这里，是 Linux 用户态程序的基本入口。",
+      "Windows 的 MSVC 没有这个头，套接字代码只能在 WSL/Linux 编。"
+    ],
+    "pits": [
+      "read/write 返回 ssize_t，用 int 接在 64 位下会截断大字节数。",
+      "close 在 Linux 上返回 EINTR 时 fd 已经释放，不要再重试。"
+    ],
+    "example": "ssize_t n = read(fd, buf, sizeof buf);\nif (n < 0 && errno == EINTR) { /* 被打断，重试 */ }",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["<sys/select.h>"],
+    "kind": "头文件",
+    "scope": "sys/select.h",
+    "brief": "声明 select、fd_set 与 FD_ZERO/FD_SET/FD_ISSET 宏。",
+    "notes": [
+      "fd_set 是定长位图，容量 FD_SETSIZE，glibc 里是 1024。",
+      "select 会原地改写传入的集合，每轮调用前都要重新 FD_ZERO/FD_SET。"
+    ],
+    "pits": [
+      "nfds 传的是最大 fd 加 1，传成 fd 本身会漏掉这个 fd。",
+      "fd 编号大于等于 FD_SETSIZE 时越界，别用 select 管这么多连接。"
+    ],
+    "example": "fd_set rfds;\nFD_ZERO(&rfds);\nFD_SET(listen_fd, &rfds);\nint n = select(listen_fd + 1, &rfds, nullptr, nullptr, nullptr);",
+    "link": "https://man7.org/linux/man-pages/man2/select.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["sockaddr_in"],
+    "kind": "类型",
+    "scope": "POSIX socket",
+    "brief": "IPv4 地址结构：端口、IP、地址族都在里面，传给 bind/connect 前要强转。",
+    "sig": "struct sockaddr_in {\n    sa_family_t    sin_family;  // AF_INET\n    in_port_t      sin_port;    // 网络字节序\n    struct in_addr sin_addr;    // 网络字节序\n    char           sin_zero[8]; // 填充，不用\n};",
+    "notes": [
+      "sizeof(sockaddr_in) 是 16 字节，和 sockaddr 一样，可以直接强转指针。",
+      "端口用 htons 转网络字节序，IP 用 inet_pton 填，别直接抄十进制。"
+    ],
+    "pits": [
+      "sin_port 直接写 8080，实际会变成 0x901F 端口，客户端连不上。",
+      "sin_addr 用 inet_addr 已废弃且失败返回 INADDR_NONE，新代码用 inet_pton。"
+    ],
+    "example": "sockaddr_in addr{};\naddr.sin_family = AF_INET;\naddr.sin_port = htons(8080);\naddr.sin_addr.s_addr = INADDR_ANY;\nbind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof addr);",
+    "link": "https://man7.org/linux/man-pages/man7/ip.7.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["sockaddr"],
+    "kind": "类型",
+    "scope": "POSIX socket",
+    "brief": "通用地址头，只有地址族和 14 字节数据，具体格式由协议结构解释。",
+    "sig": "struct sockaddr {\n    sa_family_t sa_family;\n    char        sa_data[14];\n};",
+    "notes": [
+      "bind/connect/accept 的参数都是 sockaddr*，实际传 sockaddr_in* 再强转。",
+      "sockaddr_storage 有 128 字节，能装 IPv6，通用代码用它接地址。"
+    ],
+    "pits": [
+      "不先看 sa_family 就把 sockaddr* 当 sockaddr_in* 读，IPv6 会读出垃圾。",
+      "addrlen 写小了内核会截断地址；accept 里它是值-结果参数。"
+    ],
+    "example": "sockaddr_in peer{};\nsocklen_t len = sizeof peer;\nint c = accept(listen_fd, reinterpret_cast<sockaddr*>(&peer), &len);",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["socklen_t"],
+    "kind": "类型",
+    "scope": "POSIX socket",
+    "brief": "表示地址结构长度的无符号类型，accept 里是输入输出参数。",
+    "sig": "typedef unsigned int socklen_t;  // glibc",
+    "notes": [
+      "glibc 里就是 unsigned int；POSIX 要求它至少 32 位。",
+      "accept/getsockname/getpeername 里它是输入输出参数，要传地址。"
+    ],
+    "pits": [
+      "accept 第三个参数写成 len 而不是 &len，编译直接报错。",
+      "addr 传 nullptr 时 addrlen 也要传 nullptr，否则可能 EFAULT。"
+    ],
+    "example": "sockaddr_in peer{};\nsocklen_t len = sizeof peer;\nint c = accept(listen_fd, reinterpret_cast<sockaddr*>(&peer), &len);",
+    "link": "https://man7.org/linux/man-pages/man2/accept.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["fd_set"],
+    "kind": "类型",
+    "scope": "select",
+    "brief": "select 用的 fd 位图，最多 FD_SETSIZE 个描述符，按位标记关注对象。",
+    "sig": "typedef struct { /* 定长位图，容量 FD_SETSIZE */ } fd_set;",
+    "notes": [
+      "定长位图，glibc 的 FD_SETSIZE 是 1024，对应 128 字节。",
+      "select 返回后只有就绪的位保留，原集合内容已被覆盖。"
+    ],
+    "pits": [
+      "多轮 select 复用同一个 fd_set 不重建，第二轮会漏掉连接。",
+      "不要自己按下标读写 fd_set 的内部字段，用 FD_* 宏。"
+    ],
+    "example": "fd_set rfds;\nFD_ZERO(&rfds);\nFD_SET(0, &rfds);\nselect(1, &rfds, nullptr, nullptr, nullptr);",
+    "link": "https://man7.org/linux/man-pages/man2/select.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["socket"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "创建一个套接字，返回后续 bind/connect/send 都要用的文件描述符。",
+    "sig": "int socket(int domain, int type, int protocol);",
+    "params": [
+      ["domain", "地址族：AF_INET（IPv4）、AF_INET6、AF_UNIX"],
+      ["type", "套接字类型：SOCK_STREAM（TCP）、SOCK_DGRAM（UDP）"],
+      ["protocol", "具体协议，一般填 0 让内核按 domain+type 选；TCP 可填 IPPROTO_TCP"]
+    ],
+    "ret": "成功返回非负 fd，失败返回 -1 并置 errno（EAFNOSUPPORT、EMFILE 等）。",
+    "notes": [
+      "SOCK_STREAM + AF_INET + 0 就是 TCP；SOCK_DGRAM 是 UDP。",
+      "返回的 fd 默认阻塞，要非阻塞可加 SOCK_NONBLOCK 或 fcntl。"
+    ],
+    "pits": [
+      "fd 用完必须 close，循环里 socket 不关会 EMFILE（打开文件过多）。",
+      "socket 成功只建了空壳，没有本地地址也没有对端，别急着 send。"
+    ],
+    "example": "int fd = socket(AF_INET, SOCK_STREAM, 0);\nif (fd == -1) { perror(\"socket\"); return 1; }",
+    "link": "https://man7.org/linux/man-pages/man2/socket.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["bind"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "把 socket 绑到本地 IP 和端口，服务端在 listen 之前调用。",
+    "sig": "int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);",
+    "params": [
+      ["sockfd", "socket 返回的 fd"],
+      ["addr", "指向 sockaddr_in 的指针，强转成 sockaddr*"],
+      ["addrlen", "地址结构大小，传 sizeof(struct sockaddr_in)"]
+    ],
+    "ret": "成功返回 0；失败返回 -1 并置 errno（EADDRINUSE、EACCES、EINVAL）。",
+    "notes": [
+      "只有服务端需要 bind；客户端 connect 时内核自动选源端口。",
+      "INADDR_ANY 绑所有网卡；写某个具体 IP 就只收那个网卡的包。"
+    ],
+    "pits": [
+      "端口被占或还在 TIME_WAIT 时返回 EADDRINUSE，先设 SO_REUSEADDR。",
+      "addrlen 传成指针大小 8 会 EINVAL，必须 sizeof(addr) 或 sizeof(sockaddr_in)。"
+    ],
+    "example": "sockaddr_in addr{};\naddr.sin_family = AF_INET;\naddr.sin_port = htons(8080);\naddr.sin_addr.s_addr = INADDR_ANY;\nif (bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof addr) == -1) perror(\"bind\");",
+    "link": "https://man7.org/linux/man-pages/man2/bind.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["listen"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "把已 bind 的 socket 变成监听 socket，开始接受连接。",
+    "sig": "int listen(int sockfd, int backlog);",
+    "params": [
+      ["sockfd", "已 bind 的 socket fd"],
+      ["backlog", "等待 accept 的连接队列长度上限，常用 SOMAXCONN"]
+    ],
+    "ret": "成功返回 0；失败返回 -1 并置 errno（EADDRINUSE、EOPNOTSUPP）。",
+    "notes": [
+      "listen 把主动 socket 变成被动监听 socket，之后才能 accept。",
+      "backlog 是已完成握手、还没被 accept 的队列长度，不是最大连接数。"
+    ],
+    "pits": [
+      "Linux 会把 backlog 截到 /proc/sys/net/core/somaxconn，传很大也没用。",
+      "listen 前没 bind，内核会自动绑随机端口，客户端不知道连哪。"
+    ],
+    "example": "if (listen(listen_fd, SOMAXCONN) == -1) {\n    perror(\"listen\");\n    return 1;\n}",
+    "link": "https://man7.org/linux/man-pages/man2/listen.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["accept"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "从监听队列取一个已完成握手的连接，返回新的连接 fd。",
+    "sig": "int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);",
+    "params": [
+      ["sockfd", "处于监听状态的 fd（listen 之后）"],
+      ["addr", "输出对端地址，可传 nullptr 表示不关心"],
+      ["addrlen", "输入缓冲区大小，输出实际长度；addr 为 nullptr 时也传 nullptr"]
+    ],
+    "ret": "成功返回新的连接 fd；失败返回 -1 并置 errno（EINTR、EMFILE、ECONNABORTED）。",
+    "notes": [
+      "监听 fd 一直保留继续 accept；每个连接 fd 要单独 close。",
+      "addrlen 是值-结果参数：进函数前写 sizeof，返回后被内核改写。"
+    ],
+    "pits": [
+      "Linux 上新 fd 不继承监听 fd 的 O_NONBLOCK，仍按阻塞处理。",
+      "EINTR 很常见（收到信号），要重试，不要当致命错误退出服务端。"
+    ],
+    "example": "sockaddr_in peer{};\nsocklen_t len = sizeof peer;\nint conn = accept(listen_fd, reinterpret_cast<sockaddr*>(&peer), &len);\nif (conn == -1 && errno == EINTR) continue;",
+    "link": "https://man7.org/linux/man-pages/man2/accept.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["connect"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "主动向服务端发起 TCP 连接，客户端在 socket 之后调用。",
+    "sig": "int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);",
+    "params": [
+      ["sockfd", "socket 返回的 fd"],
+      ["addr", "服务端地址，指向 sockaddr_in 后强转"],
+      ["addrlen", "地址结构大小，传 sizeof(struct sockaddr_in)"]
+    ],
+    "ret": "成功返回 0；失败返回 -1 并置 errno（ECONNREFUSED、ETIMEDOUT、ENETUNREACH）。",
+    "notes": [
+      "TCP 的 connect 成功只代表三次握手完成，不代表对端已 accept。",
+      "非阻塞 socket 返回 -1/EINPROGRESS，要用 select/poll 等可写再查 SO_ERROR。"
+    ],
+    "pits": [
+      "connect 失败后同一个 fd 不能直接重连，要 close 后重新 socket。",
+      "服务端绑 127.0.0.1 时从另一台机器连不上；要让外部连得绑 0.0.0.0。"
+    ],
+    "example": "sockaddr_in srv{};\nsrv.sin_family = AF_INET;\nsrv.sin_port = htons(8080);\ninet_pton(AF_INET, \"127.0.0.1\", &srv.sin_addr);\nif (connect(fd, reinterpret_cast<sockaddr*>(&srv), sizeof srv) == -1) perror(\"connect\");",
+    "link": "https://man7.org/linux/man-pages/man2/connect.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["send"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "在已连接的 socket 上发送数据，返回实际发出的字节数。",
+    "sig": "ssize_t send(int sockfd, const void *buf, size_t len, int flags);",
+    "params": [
+      ["sockfd", "已连接（connect 或 accept 得到）的 fd"],
+      ["buf", "要发送的数据首地址"],
+      ["len", "要发送的字节数"],
+      ["flags", "一般填 0；MSG_NOSIGNAL 禁止 SIGPIPE，MSG_DONTWAIT 单次非阻塞"]
+    ],
+    "ret": "成功返回实际发送的字节数（可能小于 len）；失败返回 -1 并置 errno。",
+    "notes": [
+      "TCP 是字节流，send 成功只代表数据进了内核发送缓冲。",
+      "返回值可能小于 len，发大块数据要循环发到发完。"
+    ],
+    "pits": [
+      "对端已关闭后继续写通常会触发 SIGPIPE，默认直接杀进程；用 MSG_NOSIGNAL 或忽略它。",
+      "send 返回 -1/EAGAIN 只说明发送缓冲满，连接不一定坏了，等可写再重试。"
+    ],
+    "example": "const char *msg = \"hello\\n\";\nssize_t n = send(conn, msg, strlen(msg), MSG_NOSIGNAL);\nif (n == -1) perror(\"send\");",
+    "link": "https://man7.org/linux/man-pages/man2/send.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["recv"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "从已连接的 socket 接收数据，返回 0 表示对端已关闭。",
+    "sig": "ssize_t recv(int sockfd, void *buf, size_t len, int flags);",
+    "params": [
+      ["sockfd", "已连接的 socket fd"],
+      ["buf", "接收缓冲区首地址"],
+      ["len", "缓冲区能容纳的最大字节数"],
+      ["flags", "一般填 0；MSG_WAITALL 等满 len，MSG_PEEK 偷看不取走"]
+    ],
+    "ret": "大于 0 是收到的字节数；0 表示对端有序关闭；-1 表示出错并置 errno。",
+    "notes": [
+      "返回 0 才是对端关闭，返回 -1 不是；两者处理完全不同。",
+      "一次 recv 不保证收满 len，应用协议要自己定长度字段或分隔符。"
+    ],
+    "pits": [
+      "直接把 recv 返回值当字符串长度用却不补 '\\0'，printf 会越界读。",
+      "阻塞 socket 上 recv 会一直等；要超时用 SO_RCVTIMEO 或 select。"
+    ],
+    "example": "char buf[1024];\nssize_t n = recv(conn, buf, sizeof buf - 1, 0);\nif (n > 0) { buf[n] = '\\0'; std::printf(\"%s\", buf); }\nelse if (n == 0) { /* 对端关闭 */ }",
+    "link": "https://man7.org/linux/man-pages/man2/recv.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["read"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "从任意 fd 读数据；socket 上等价于 recv 的 flags=0。",
+    "sig": "ssize_t read(int fd, void *buf, size_t count);",
+    "params": [
+      ["fd", "要读的文件描述符，可以是 socket、管道、普通文件"],
+      ["buf", "接收缓冲区首地址"],
+      ["count", "最多读多少字节"]
+    ],
+    "ret": "成功返回读到的字节数（可能小于 count）；0 表示 EOF；-1 表示出错并置 errno。",
+    "notes": [
+      "socket 上 read 等价于 recv(..., 0)，但 read 没法带 MSG_* 标志。",
+      "count 是字节数，不是元素个数；读结构体要按字节算。"
+    ],
+    "pits": [
+      "read 返回 0 是正常关闭，不是失败；当失败重试会死循环。",
+      "管道/socket 上可能短读，想读满就要循环累加。"
+    ],
+    "example": "ssize_t n = read(conn, buf, sizeof buf);\nif (n == 0) { /* 对端关闭 */ }\nelse if (n < 0 && errno != EINTR) { perror(\"read\"); }",
+    "link": "https://man7.org/linux/man-pages/man2/read.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["write"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "向任意 fd 写数据；socket 上等价于 send 的 flags=0。",
+    "sig": "ssize_t write(int fd, const void *buf, size_t count);",
+    "params": [
+      ["fd", "要写的文件描述符，可以是 socket、管道、普通文件"],
+      ["buf", "要写的数据首地址"],
+      ["count", "要写的字节数"]
+    ],
+    "ret": "成功返回实际写入的字节数（可能小于 count）；失败返回 -1 并置 errno。",
+    "notes": [
+      "socket 上 write 等价于 send(..., 0)，但无法带 MSG_NOSIGNAL。",
+      "普通文件上 write 一般写满；socket/管道上可能短写。"
+    ],
+    "pits": [
+      "对端关闭后 write 触发 SIGPIPE，默认终止进程，服务端要先忽略。",
+      "短写时只重发剩下的部分，把整块重发会让对端收到重复数据。"
+    ],
+    "example": "ssize_t n = write(conn, buf, len);\nif (n == -1 && errno == EPIPE) { /* 对端已关闭 */ }",
+    "link": "https://man7.org/linux/man-pages/man2/write.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["shutdown"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "关闭连接的一个方向（读/写/双向），但不释放文件描述符。",
+    "sig": "int shutdown(int sockfd, int how);",
+    "params": [
+      ["sockfd", "已连接的 socket fd"],
+      ["how", "SHUT_RD、SHUT_WR 或 SHUT_RDWR，分别关读、写、双向"]
+    ],
+    "ret": "成功返回 0；失败返回 -1 并置 errno（ENOTCONN、EINVAL）。",
+    "notes": [
+      "SHUT_WR 会发 FIN 并让后续写返回 EPIPE，但读方向仍可收数据。",
+      "shutdown 不释放 fd；要真正释放还得 close。"
+    ],
+    "pits": [
+      "对监听 fd 调 shutdown 不能停止监听，要 close 才会释放端口。",
+      "shutdown 之后 fd 还能读；想彻底断开发 SHUT_RDWR 再 close。"
+    ],
+    "example": "shutdown(conn, SHUT_WR);   // 告诉对端我不再发了\n// 仍可 recv 对端剩余数据\nclose(conn);",
+    "link": "https://man7.org/linux/man-pages/man2/shutdown.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["close"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "关闭 fd 并释放引用；socket 用完必须 close 才不会泄漏。",
+    "sig": "int close(int fd);",
+    "params": [
+      ["fd", "要关闭的文件描述符"]
+    ],
+    "ret": "成功返回 0；失败返回 -1 并置 errno。Linux 上即使返回 EINTR，fd 也已经释放。",
+    "notes": [
+      "close 释放的是 fd 引用；dup 出来的副本都关了，内核才真正回收连接。",
+      "close 后不能再 read/write/accept，fd 编号可能马上被别的 socket 复用。"
+    ],
+    "pits": [
+      "Linux 上 close 返回 EINTR 不要重试，重试可能关掉别的线程刚开的 fd。",
+      "服务端循环 accept 后忘了 close(conn)，跑一会儿就 EMFILE。"
+    ],
+    "example": "int r = close(fd);\nif (r == -1) perror(\"close\");",
+    "link": "https://man7.org/linux/man-pages/man2/close.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["setsockopt"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "设置 socket 选项，如 SO_REUSEADDR、超时、缓冲区大小。",
+    "sig": "int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);",
+    "params": [
+      ["sockfd", "目标 socket fd"],
+      ["level", "选项层级：SOL_SOCKET（通用）、IPPROTO_TCP（TCP 专用）"],
+      ["optname", "选项名：SO_REUSEADDR、SO_RCVTIMEO、TCP_NODELAY 等"],
+      ["optval", "选项值地址，optlen 是它的字节数，如 &one, sizeof one"]
+    ],
+    "ret": "成功返回 0；失败返回 -1 并置 errno（ENOPROTOOPT、EINVAL）。",
+    "notes": [
+      "SO_REUSEADDR 必须在 bind 之前设，bind 之后再设无效。",
+      "超时用 struct timeval 给 SO_RCVTIMEO/SO_SNDTIMEO，不是 int 毫秒。"
+    ],
+    "pits": [
+      "SO_REUSEADDR 不能让两个进程同时 LISTEN 同一端口，那要 SO_REUSEPORT。",
+      "optlen 传错（如用 sizeof(int*)）会 EINVAL 或只改到半个值。"
+    ],
+    "example": "int one = 1;\nsetsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);\ntimeval tv{5, 0};\nsetsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);",
+    "link": "https://man7.org/linux/man-pages/man2/setsockopt.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["inet_ntop"],
+    "kind": "函数",
+    "scope": "arpa/inet.h",
+    "brief": "把二进制 IP 地址转成可读字符串，打印对端地址时用。",
+    "sig": "const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);",
+    "params": [
+      ["af", "地址族：AF_INET 或 AF_INET6"],
+      ["src", "指向二进制地址，IPv4 传 &addr.sin_addr"],
+      ["dst", "输出字符串缓冲区"],
+      ["size", "缓冲区字节数，IPv4 至少 INET_ADDRSTRLEN"]
+    ],
+    "ret": "成功返回 dst；失败返回 nullptr 并置 errno（ENOSPC、EAFNOSUPPORT）。",
+    "notes": [
+      "IPv4 缓冲至少 INET_ADDRSTRLEN（16）字节，IPv6 用 INET6_ADDRSTRLEN（46）。",
+      "src 指向二进制地址：IPv4 用 &addr.sin_addr，不是字符串。"
+    ],
+    "pits": [
+      "把 sin_port 也传进去或传错指针，输出会是乱码或 0.0.0.0。",
+      "size 传 4（IPv4 地址长度）不够放字符串，返回 nullptr/ENOSPC。"
+    ],
+    "example": "char ip[INET_ADDRSTRLEN];\ninet_ntop(AF_INET, &peer.sin_addr, ip, sizeof ip);\nstd::printf(\"%s:%u\\n\", ip, ntohs(peer.sin_port));",
+    "link": "https://man7.org/linux/man-pages/man3/inet_ntop.3.html",
+    "since": "POSIX 2001"
+  },
+  {
+    "keys": ["inet_pton"],
+    "kind": "函数",
+    "scope": "arpa/inet.h",
+    "brief": "把点分十进制 IP 字符串转成二进制地址，填 sockaddr_in 时用。",
+    "sig": "int inet_pton(int af, const char *src, void *dst);",
+    "params": [
+      ["af", "地址族：AF_INET 或 AF_INET6"],
+      ["src", "点分十进制字符串，如 \"127.0.0.1\""],
+      ["dst", "输出二进制地址，IPv4 传 struct in_addr*"]
+    ],
+    "ret": "成功返回 1；字符串格式非法返回 0；af 不支持等原因返回 -1 并置 errno。",
+    "notes": [
+      "必须判 == 1；返回 0 也是失败，只是失败原因不同。",
+      "dst 指向 struct in_addr 或 in6_addr，不是 char 缓冲区。"
+    ],
+    "pits": [
+      "if (inet_pton(...)) 把 0 和 -1 都当成功，非法 IP 会静默通过。",
+      "IPv4 用 AF_INET + in_addr，IPv6 要 AF_INET6 + in6_addr，别混。"
+    ],
+    "example": "in_addr a{};\nif (inet_pton(AF_INET, \"127.0.0.1\", &a) != 1) {\n    std::fprintf(stderr, \"bad ip\\n\");\n}",
+    "link": "https://man7.org/linux/man-pages/man3/inet_pton.3.html",
+    "since": "POSIX 2001"
+  },
+  {
+    "keys": ["htons"],
+    "kind": "函数",
+    "scope": "arpa/inet.h",
+    "brief": "把 16 位主机字节序转成网络字节序，端口号必须过这一道。",
+    "sig": "uint16_t htons(uint16_t hostshort);",
+    "params": [
+      ["hostshort", "主机字节序的 16 位值，通常是端口号，如 8080"]
+    ],
+    "ret": "返回网络字节序的 16 位值；不会失败，也没有 errno。",
+    "notes": [
+      "网络字节序是大端；x86 是小端，所以端口必须过 htons。",
+      "对应的还有 htonl（32 位）、ntohs/ntohl（反向转换）。"
+    ],
+    "pits": [
+      "sin_port = htons(8080) 才是 8080 端口；直接写 8080 会变成 0x901F。",
+      "32 位 IP 要用 htonl，写成 htons 会截断成 16 位，地址直接错。"
+    ],
+    "example": "sockaddr_in addr{};\naddr.sin_port = htons(8080);\nstd::printf(\"%u\\n\", ntohs(addr.sin_port));",
+    "link": "https://man7.org/linux/man-pages/man3/htons.3.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["select"],
+    "kind": "函数",
+    "scope": "select",
+    "brief": "阻塞等待一组 fd 中任意一个可读/可写/出错，带超时。",
+    "sig": "int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);",
+    "params": [
+      ["nfds", "最大 fd 编号加 1，不是 fd 个数"],
+      ["readfds", "关心可读的 fd 集合，可传 nullptr"],
+      ["writefds", "关心可写的 fd 集合，可传 nullptr"],
+      ["timeout", "struct timeval，nullptr 表示一直等；返回后可能被改成剩余时间"]
+    ],
+    "ret": "返回就绪 fd 的总数；0 表示超时；-1 表示出错并置 errno（EINTR、EBADF）。",
+    "notes": [
+      "返回后集合被改写，下一轮必须重新 FD_ZERO/FD_SET 再调。",
+      "nfds 之后（编号更大）的 fd 不会被检查，漏一个就少一个连接。"
+    ],
+    "pits": [
+      "timeout 在 Linux 上会被改写，循环里要重新填一遍。",
+      "select 返回 EINTR 时集合内容不可靠，重试前要全部重建。"
+    ],
+    "example": "fd_set rfds;\nFD_ZERO(&rfds);\nFD_SET(listen_fd, &rfds);\nint n = select(listen_fd + 1, &rfds, nullptr, nullptr, nullptr);",
+    "link": "https://man7.org/linux/man-pages/man2/select.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["getaddrinfo"],
+    "kind": "函数",
+    "scope": "POSIX socket",
+    "brief": "把域名和服务名解析成一组 sockaddr，兼容 IPv4/IPv6。",
+    "sig": "int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);",
+    "params": [
+      ["node", "主机名或 IP 字符串，如 \"example.com\"、\"127.0.0.1\""],
+      ["service", "服务名或端口字符串，如 \"http\"、\"8080\""],
+      ["hints", "过滤条件：ai_family=AF_UNSPEC、ai_socktype=SOCK_STREAM"],
+      ["res", "输出参数，指向结果链表，用完要 freeaddrinfo"]
+    ],
+    "ret": "成功返回 0；失败返回 EAI_* 错误码，不设置 errno，用 gai_strerror 解释。",
+    "notes": [
+      "结果可能有多条（IPv4/IPv6），要遍历链表逐个尝试 connect。",
+      "freeaddrinfo(res) 释放整条链表，不是对每个节点单独 free。"
+    ],
+    "pits": [
+      "失败返回 EAI_* 而不是 -1，用 perror 看不出原因，要用 gai_strerror。",
+      "hints 不清零会带上栈垃圾，AI_PASSIVE 等标志可能意外生效。"
+    ],
+    "example": "addrinfo hints{}, *res = nullptr;\nhints.ai_family = AF_UNSPEC;\nhints.ai_socktype = SOCK_STREAM;\nint rc = getaddrinfo(\"example.com\", \"80\", &hints, &res);\nif (rc != 0) std::fprintf(stderr, \"%s\\n\", gai_strerror(rc));",
+    "link": "https://man7.org/linux/man-pages/man3/getaddrinfo.3.html",
+    "since": "POSIX 2001"
+  },
+  {
+    "keys": ["INADDR_ANY"],
+    "kind": "宏",
+    "scope": "POSIX socket",
+    "brief": "表示 0.0.0.0：bind 时监听本机所有网卡，而不只是一个 IP。",
+    "sig": "#define INADDR_ANY ((in_addr_t) 0x00000000)",
+    "notes": [
+      "赋值给 sin_addr.s_addr，表示 bind 到 0.0.0.0（所有网卡）。",
+      "本身就是 0，不需要再 htonl；写 htonl(INADDR_ANY) 也不报错。"
+    ],
+    "pits": [
+      "写成 addr.sin_addr = INADDR_ANY 类型不匹配，要给 .s_addr。",
+      "监听 fd 上 getsockname 只显示 0.0.0.0；真实本地 IP 要 accept 后对连接 fd 调。"
+    ],
+    "example": "sockaddr_in addr{};\naddr.sin_addr.s_addr = INADDR_ANY;",
+    "link": "https://man7.org/linux/man-pages/man7/ip.7.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["AF_INET"],
+    "kind": "宏",
+    "scope": "POSIX socket",
+    "brief": "IPv4 地址族，socket 的第一个参数和 sin_family 都填它。",
+    "sig": "#define AF_INET 2  /* Linux；可移植代码不要写死 2 */",
+    "notes": [
+      "socket 的第一个参数和 sockaddr_in.sin_family 都用它。",
+      "IPv6 用 AF_INET6；AF_UNSPEC 表示让 getaddrinfo 两种都返回。"
+    ],
+    "pits": [
+      "socket 填 AF_INET 却用 sockaddr_in6，bind 会 EINVAL 或地址错乱。",
+      "把 AF_INET 和 PF_INET 混着理解：Linux 上值相同，可移植代码用 AF_*。"
+    ],
+    "example": "int fd = socket(AF_INET, SOCK_STREAM, 0);\naddr.sin_family = AF_INET;",
+    "link": "https://man7.org/linux/man-pages/man2/socket.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["SOCK_STREAM"],
+    "kind": "宏",
+    "scope": "POSIX socket",
+    "brief": "面向连接的可靠字节流，配合 AF_INET 就是 TCP。",
+    "sig": "#define SOCK_STREAM 1  /* Linux */",
+    "notes": [
+      "面向连接、可靠、有序的字节流；TCP 就是它。",
+      "SOCK_DGRAM 是无连接数据报（UDP），别把两者语义搞混。"
+    ],
+    "pits": [
+      "SOCK_STREAM 不保留消息边界，两次 send 可能被一次 recv 读走。",
+      "socket 类型和协议要匹配：SOCK_STREAM + IPPROTO_UDP 会失败。"
+    ],
+    "example": "int tcp = socket(AF_INET, SOCK_STREAM, 0);\nint udp = socket(AF_INET, SOCK_DGRAM, 0);",
+    "link": "https://man7.org/linux/man-pages/man7/tcp.7.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["SO_REUSEADDR"],
+    "kind": "宏",
+    "scope": "POSIX socket",
+    "brief": "允许 bind 处于 TIME_WAIT 的端口，服务端重启不用等。",
+    "sig": "#define SO_REUSEADDR 2  /* Linux */",
+    "notes": [
+      "在 bind 之前设置，解决服务端重启时的 EADDRINUSE（TIME_WAIT）。",
+      "只影响本进程 bind，不会抢走别的进程正在监听的端口。"
+    ],
+    "pits": [
+      "bind 之后再设无效，还是可能 EADDRINUSE。",
+      "它不能让两个进程同时 LISTEN 同一端口，那需要 SO_REUSEPORT。"
+    ],
+    "example": "int one = 1;\nsetsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);\nbind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof addr);",
+    "link": "https://man7.org/linux/man-pages/man7/socket.7.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["FD_ZERO"],
+    "kind": "宏",
+    "scope": "select",
+    "brief": "把 fd_set 所有位清零，每次 select 前都要重来一遍。",
+    "sig": "void FD_ZERO(fd_set *set);  /* 宏 */",
+    "notes": [
+      "参数必须是指针，传 fd_set 本身而不是 &set 会编译不过。",
+      "每轮 select 前都要重新清零再 FD_SET，不能只在初始化时做一次。"
+    ],
+    "pits": [
+      "忘了 FD_ZERO，fd_set 里是栈垃圾，select 会等一个随机 fd。",
+      "只 FD_ZERO 不 FD_SET，select 会一直等到超时，看起来像没反应。"
+    ],
+    "example": "fd_set rfds;\nFD_ZERO(&rfds);\nFD_SET(listen_fd, &rfds);",
+    "link": "https://man7.org/linux/man-pages/man2/select.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["FD_SET"],
+    "kind": "宏",
+    "scope": "select",
+    "brief": "把某个 fd 加进 fd_set，让 select 关注它。",
+    "sig": "void FD_SET(int fd, fd_set *set);  /* 宏 */",
+    "notes": [
+      "fd 从 0 开始编号，位图第 fd 位对应这个描述符。",
+      "fd 大于等于 FD_SETSIZE 时越界写，glibc 不报错但会踩内存。"
+    ],
+    "pits": [
+      "accept 返回的新 fd 忘了 FD_SET，下一轮 select 监控不到它。",
+      "select 返回后集合被改写，下一轮必须重新 FD_SET 所有关心的 fd。"
+    ],
+    "example": "FD_ZERO(&rfds);\nFD_SET(listen_fd, &rfds);\nFD_SET(conn_fd, &rfds);",
+    "link": "https://man7.org/linux/man-pages/man2/select.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["FD_ISSET"],
+    "kind": "宏",
+    "scope": "select",
+    "brief": "select 返回后检查某个 fd 是否就绪，非 0 表示就绪。",
+    "sig": "int FD_ISSET(int fd, fd_set *set);  /* 宏，返回非 0 表示就绪 */",
+    "notes": [
+      "只在 select 返回值大于 0 后才有意义；超时时所有位都是 0。",
+      "对同一个 fd，可读和可写要分别查 readfds 和 writefds。"
+    ],
+    "pits": [
+      "fd 编号大于等于 FD_SETSIZE 时越界，行为未定义。",
+      "select 返回 -1 时还去 FD_ISSET，集合内容不可靠。"
+    ],
+    "example": "if (FD_ISSET(listen_fd, &rfds)) {\n    int conn = accept(listen_fd, nullptr, nullptr);\n}",
+    "link": "https://man7.org/linux/man-pages/man2/select.2.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["errno"],
+    "kind": "宏",
+    "scope": "errno",
+    "brief": "最近一次失败调用留下的错误码；成功调用不会把它清零。",
+    "sig": "#define errno (*__errno_location())  /* glibc，线程局部 */",
+    "notes": [
+      "每个线程一份，一个线程的失败不会串到另一个线程。",
+      "成功调用不会清零 errno，判断失败要先看返回值。",
+      "错误码宏（EADDRINUSE 等）定义在 <cerrno>（C++）或 <errno.h> 里。"
+    ],
+    "pits": [
+      "先 perror/printf 再读 errno，可能已被这些调用改写。",
+      "系统调用返回 -1 后要马上读或存起来，中间再调别的函数就可能被覆盖。"
+    ],
+    "example": "if (bind(fd, addr, len) == -1) {\n    int e = errno;          // 先存下来\n    std::fprintf(stderr, \"bind: %s\\n\", std::strerror(e));\n}",
+    "link": "https://man7.org/linux/man-pages/man3/errno.3.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["EADDRINUSE"],
+    "kind": "宏",
+    "scope": "errno",
+    "brief": "地址/端口已被占用，bind 失败时最常见的原因。",
+    "sig": "#define EADDRINUSE 98  /* Linux */",
+    "notes": [
+      "bind 的端口已被占用，或旧连接还在 TIME_WAIT。",
+      "客户端 connect 到没人监听的端口返回 ECONNREFUSED，不是这个。"
+    ],
+    "pits": [
+      "服务端重启就报它，先 setsockopt(SO_REUSEADDR) 再 bind。",
+      "SO_REUSEADDR 解决不了两个进程同时监听同一端口，那要用 SO_REUSEPORT。"
+    ],
+    "example": "if (bind(fd, addr, len) == -1 && errno == EADDRINUSE) {\n    std::fprintf(stderr, \"port busy\\n\");\n}",
+    "link": "https://man7.org/linux/man-pages/man3/errno.3.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["EINTR"],
+    "kind": "宏",
+    "scope": "errno",
+    "brief": "系统调用被信号打断，操作没完成，通常重试即可。",
+    "sig": "#define EINTR 4  /* Linux */",
+    "notes": [
+      "阻塞系统调用被信号打断时返回 -1，并把 errno 设为 EINTR。",
+      "accept/recv/read/select 都要考虑它，重试通常就能继续。"
+    ],
+    "pits": [
+      "把 EINTR 当连接错误直接 close，会莫名其妙断开正常连接。",
+      "sigaction 设 SA_RESTART 能自动重启部分调用，但 select 不会被重启。"
+    ],
+    "example": "while ((n = accept(listen_fd, nullptr, nullptr)) == -1) {\n    if (errno != EINTR) { perror(\"accept\"); break; }\n}",
+    "link": "https://man7.org/linux/man-pages/man3/errno.3.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["ECONNRESET"],
+    "kind": "宏",
+    "scope": "errno",
+    "brief": "对端异常终止（RST），连接被强制复位。",
+    "sig": "#define ECONNRESET 104  /* Linux */",
+    "notes": [
+      "对端进程崩溃、被 kill 或强制关闭后，内核回 RST，连接被复位。",
+      "recv 返回 -1/ECONNRESET，send 可能返回 -1/EPIPE。"
+    ],
+    "pits": [
+      "把它当致命错误退出整个服务端，一个客户端就能把服务打挂。",
+      "收到 RST 后同一连接不能继续用，必须 close 并重新 accept。"
+    ],
+    "example": "ssize_t n = recv(conn, buf, sizeof buf, 0);\nif (n == -1 && errno == ECONNRESET) { close(conn); }",
+    "link": "https://man7.org/linux/man-pages/man3/errno.3.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["EAGAIN", "EWOULDBLOCK"],
+    "kind": "宏",
+    "scope": "errno",
+    "brief": "非阻塞 fd 暂时没数据或缓冲区满，稍后再试。",
+    "sig": "#define EAGAIN 11  /* Linux；EWOULDBLOCK 与它同值 */",
+    "notes": [
+      "非阻塞 fd 暂时无数据，或发送缓冲满时返回这个错误。",
+      "SO_RCVTIMEO/SO_SNDTIMEO 超时也返回 EAGAIN，不是 ETIMEDOUT。"
+    ],
+    "pits": [
+      "把 EAGAIN 当连接断开就 close，会丢掉还能继续用的连接。",
+      "忙等重试会吃满 CPU，要用 select/poll 等到就绪再试。"
+    ],
+    "example": "ssize_t n = recv(conn, buf, sizeof buf, MSG_DONTWAIT);\nif (n == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {\n    // 现在没数据，等 select 说可读再来\n}",
+    "link": "https://man7.org/linux/man-pages/man3/errno.3.html",
+    "since": "POSIX.1"
+  },
+  {
+    "keys": ["SIGPIPE"],
+    "kind": "宏",
+    "scope": "signal",
+    "brief": "向已关闭的 socket 写数据时内核发的信号，默认终止进程。",
+    "sig": "#define SIGPIPE 13  /* Linux；默认动作是终止进程 */",
+    "notes": [
+      "忽略它：signal(SIGPIPE, SIG_IGN)，之后 write 返回 -1/EPIPE。",
+      "send 加 MSG_NOSIGNAL 只让这次调用失败，不改全局设置。"
+    ],
+    "pits": [
+      "默认处置下服务端直接被杀，日志都来不及打。",
+      "signal() 各平台语义有差异，服务端用 sigaction 更稳。"
+    ],
+    "example": "signal(SIGPIPE, SIG_IGN);\nssize_t n = write(conn, buf, len);\nif (n == -1 && errno == EPIPE) { close(conn); }",
+    "link": "https://man7.org/linux/man-pages/man7/signal.7.html",
+    "since": "POSIX.1"
+  }
+]
